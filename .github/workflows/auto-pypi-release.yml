@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.9, 3.10, 3.11, 3.12]
+        python-version: ['3.9', '3.10', '3.11', '3.12']
 
     steps:
     - uses: actions/checkout@v4
     
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     
@@ -54,7 +54,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
@@ -79,21 +79,28 @@ jobs:
         current_version = data['project']['version']
         print(f"Current version: {current_version}")
         
-        # Get commit count since last version tag
+        # Get commit count since last version tag or commit
         try:
-            # Get the latest tag
-            result = subprocess.run(['git', 'describe', '--tags', '--abbrev=0'], 
+            # Get the latest version tag
+            result = subprocess.run(['git', 'tag', '-l', 'v*', '--sort=-version:refname'], 
                                   capture_output=True, text=True)
-            if result.returncode == 0:
-                last_tag = result.stdout.strip()
+            if result.returncode == 0 and result.stdout.strip():
+                last_tag = result.stdout.strip().split('\n')[0]
+                print(f"Last tag found: {last_tag}")
                 # Count commits since last tag
                 result = subprocess.run(['git', 'rev-list', '--count', f'{last_tag}..HEAD'], 
                                       capture_output=True, text=True)
-                commit_count = int(result.stdout.strip()) if result.returncode == 0 else 1
+                commit_count = int(result.stdout.strip()) if result.returncode == 0 else 0
             else:
-                commit_count = 1
-        except:
+                print("No version tags found, counting all commits")
+                result = subprocess.run(['git', 'rev-list', '--count', 'HEAD'], 
+                                      capture_output=True, text=True)
+                commit_count = int(result.stdout.strip()) if result.returncode == 0 else 1
+        except Exception as e:
+            print(f"Error counting commits: {e}")
             commit_count = 1
+        
+        print(f"Commits since last version: {commit_count}")
         
         # Only increment if there are new commits
         if commit_count > 0:
@@ -101,7 +108,7 @@ jobs:
             major, minor, patch = map(int, current_version.split('.'))
             
             # Auto-increment patch version
-            new_version = f"{major}.{minor}.{patch + commit_count}"
+            new_version = f"{major}.{minor}.{patch + 1}"
             
             # Update pyproject.toml
             data['project']['version'] = new_version
@@ -141,7 +148,7 @@ jobs:
         ref: main  # Get the latest commit with version update
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
@@ -167,7 +174,7 @@ jobs:
     
     - name: Create GitHub Release
       if: needs.auto-version.outputs.changed == 'true'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ needs.auto-version.outputs.version }}
         name: 🚀 Release v${{ needs.auto-version.outputs.version }}
