@@ -26,7 +26,7 @@ You need to configure these secrets in your GitHub repository:
 - Commits version changes back to repository
 
 ### ✅ **Quality Assurance** 
-- Tests on Python 3.9, 3.10, 3.11, 3.12
+- Tests on Python 3.10, 3.11, 3.12
 - Runs flake8 linting
 - Validates package imports
 - Checks package build before publishing

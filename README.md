@@ -195,7 +195,7 @@ pytest tests/
 ## 📋 Requisitos
 
 ### Dependências
-- Python >= 3.8
+- Python >= 3.10
 - fastmcp >= 2.12.3
 - httpx >= 0.25.0
 - pydantic >= 2.0.0
