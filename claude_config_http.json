@@ -1,0 +1,14 @@
+{
+  "_comment": "Configuração ECBIESEK - Servidor HTTP via Railway",
+  "mcpServers": {
+    "SiengeHTTP": {
+      "command": "uv",
+      "args": [
+        "tool",
+        "run", 
+        "mcp-client-sse",
+        "https://sienge-mcp-production.up.railway.app/mcp/sse"
+      ]
+    }
+  }
+}

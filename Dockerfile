@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar arquivos de dependências
-COPY requirements.txt pyproject.toml app.py ./
+COPY requirements.txt pyproject.toml app.py simple_server.py ./
 COPY src/ ./src/
 
 # Instalar dependências Python
@@ -28,4 +28,4 @@ USER appuser
 
 # Comando para iniciar o servidor
 # O Railway define automaticamente a variável PORT
-CMD ["python", "app.py"]
+CMD ["python", "simple_server.py"]
