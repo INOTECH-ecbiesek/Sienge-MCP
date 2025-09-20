@@ -4,8 +4,7 @@ Script de inicialização para Railway
 """
 
 import os
-import subprocess
-import sys
+from src.sienge_mcp.server import mcp
 
 if __name__ == "__main__":
     # Railway define automaticamente a porta via variável PORT
@@ -15,12 +14,9 @@ if __name__ == "__main__":
     print(f"🌐 FastMCP Server rodando em: http://0.0.0.0:{port}")
     print(f"📚 Documentação disponível em: http://0.0.0.0:{port}/docs")
     
-    # Usar o comando fastmcp diretamente
-    cmd = [
-        sys.executable, "-m", "fastmcp",
-        "src.sienge_mcp.server:mcp",
-        "--host", "0.0.0.0",
-        "--port", str(port)
-    ]
-    
-    subprocess.run(cmd)
+    # Rodar o servidor FastMCP usando o método run_server
+    mcp.run_server(
+        transport="http",
+        host="0.0.0.0",
+        port=port
+    )
