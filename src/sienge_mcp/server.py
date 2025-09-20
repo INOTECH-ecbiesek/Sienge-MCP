@@ -33,7 +33,7 @@ class SiengeAPIError(Exception):
 
 async def make_sienge_request(method: str, endpoint: str, params: Optional[Dict] = None, json_data: Optional[Dict] = None) -> Dict:
     """
-    Função auxiliar para fazer requisições à API do Sienge
+    Função auxiliar para fazer requisições à API do Sienge (v1)
     Suporta tanto Bearer Token quanto Basic Auth
     """
     try:
@@ -102,6 +102,79 @@ async def make_sienge_request(method: str, endpoint: str, params: Optional[Dict]
             "success": False,
             "error": str(e),
             "message": f"Erro na requisição: {str(e)}"
+        }
+
+async def make_sienge_bulk_request(method: str, endpoint: str, params: Optional[Dict] = None, json_data: Optional[Dict] = None) -> Dict:
+    """
+    Função auxiliar para fazer requisições à API bulk-data do Sienge
+    Suporta tanto Bearer Token quanto Basic Auth
+    """
+    try:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            
+            # Configurar autenticação e URL para bulk-data
+            auth = None
+            
+            if SIENGE_API_KEY and SIENGE_API_KEY != "sua_api_key_aqui":
+                # Bearer Token (Recomendado)
+                headers["Authorization"] = f"Bearer {SIENGE_API_KEY}"
+                url = f"{SIENGE_BASE_URL}/{SIENGE_SUBDOMAIN}/public/api/bulk-data/v1{endpoint}"
+            elif SIENGE_USERNAME and SIENGE_PASSWORD:
+                # Basic Auth usando httpx.BasicAuth
+                auth = httpx.BasicAuth(SIENGE_USERNAME, SIENGE_PASSWORD)
+                url = f"{SIENGE_BASE_URL}/{SIENGE_SUBDOMAIN}/public/api/bulk-data/v1{endpoint}"
+            else:
+                return {
+                    "success": False,
+                    "error": "No Authentication",
+                    "message": "Configure SIENGE_API_KEY ou SIENGE_USERNAME/PASSWORD no .env"
+                }
+            
+            response = await client.request(
+                method=method,
+                url=url,
+                headers=headers,
+                params=params,
+                json=json_data,
+                auth=auth
+            )
+            
+            if response.status_code in [200, 201]:
+                try:
+                    return {
+                        "success": True,
+                        "data": response.json(),
+                        "status_code": response.status_code
+                    }
+                except:
+                    return {
+                        "success": True,
+                        "data": {"message": "Success"},
+                        "status_code": response.status_code
+                    }
+            else:
+                return {
+                    "success": False,
+                    "error": f"HTTP {response.status_code}",
+                    "message": response.text,
+                    "status_code": response.status_code
+                }
+                
+    except httpx.TimeoutException:
+        return {
+            "success": False,
+            "error": "Timeout",
+            "message": f"A requisição excedeu o tempo limite de {REQUEST_TIMEOUT}s"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"Erro na requisição bulk-data: {str(e)}"
         }
 
 # ============ CONEXÃO E TESTE ============
@@ -272,46 +345,115 @@ async def get_sienge_creditor_bank_info(creditor_id: str) -> Dict:
 # ============ FINANCEIRO ============
 
 @mcp.tool
-async def get_sienge_accounts_receivable(customer_id: Optional[str] = None, due_date_from: Optional[str] = None, 
-                                       due_date_to: Optional[str] = None, status: Optional[str] = None, limit: Optional[int] = 50) -> Dict:
+async def get_sienge_accounts_receivable(start_date: str, end_date: str, selection_type: str = "D", 
+                                       company_id: Optional[int] = None, cost_centers_id: Optional[List[int]] = None,
+                                       correction_indexer_id: Optional[int] = None, correction_date: Optional[str] = None,
+                                       change_start_date: Optional[str] = None, completed_bills: Optional[str] = None,
+                                       origins_ids: Optional[List[str]] = None, bearers_id_in: Optional[List[int]] = None,
+                                       bearers_id_not_in: Optional[List[int]] = None) -> Dict:
     """
-    Consulta títulos a receber
+    Consulta parcelas do contas a receber via API bulk-data
     
     Args:
-        customer_id: ID do cliente
-        due_date_from: Data inicial (YYYY-MM-DD)
-        due_date_to: Data final (YYYY-MM-DD)
-        status: Status (open, paid, overdue)
-        limit: Máximo de registros
+        start_date: Data de início do período (YYYY-MM-DD) - OBRIGATÓRIO
+        end_date: Data do fim do período (YYYY-MM-DD) - OBRIGATÓRIO  
+        selection_type: Seleção da data do período (I=emissão, D=vencimento, P=pagamento, B=competência) - padrão: D
+        company_id: Código da empresa
+        cost_centers_id: Lista de códigos de centro de custo
+        correction_indexer_id: Código do indexador de correção
+        correction_date: Data para correção do indexador (YYYY-MM-DD)
+        change_start_date: Data inicial de alteração do título/parcela (YYYY-MM-DD)
+        completed_bills: Filtrar por títulos completos (S)
+        origins_ids: Códigos dos módulos de origem (CR, CO, ME, CA, CI, AR, SC, LO, NE, NS, AC, NF)
+        bearers_id_in: Filtrar parcelas com códigos de portador específicos
+        bearers_id_not_in: Filtrar parcelas excluindo códigos de portador específicos
     """
-    params = {"limit": min(limit or 50, 200)}
+    params = {
+        "startDate": start_date,
+        "endDate": end_date,
+        "selectionType": selection_type
+    }
     
-    if customer_id:
-        params["customer_id"] = customer_id
-    if due_date_from:
-        params["due_date_from"] = due_date_from
-    if due_date_to:
-        params["due_date_to"] = due_date_to
-    if status:
-        params["status"] = status
+    if company_id:
+        params["companyId"] = company_id
+    if cost_centers_id:
+        params["costCentersId"] = cost_centers_id
+    if correction_indexer_id:
+        params["correctionIndexerId"] = correction_indexer_id
+    if correction_date:
+        params["correctionDate"] = correction_date
+    if change_start_date:
+        params["changeStartDate"] = change_start_date
+    if completed_bills:
+        params["completedBills"] = completed_bills
+    if origins_ids:
+        params["originsIds"] = origins_ids
+    if bearers_id_in:
+        params["bearersIdIn"] = bearers_id_in
+    if bearers_id_not_in:
+        params["bearersIdNotIn"] = bearers_id_not_in
     
-    result = await make_sienge_request("GET", "/accounts-receivable", params=params)
+    result = await make_sienge_bulk_request("GET", "/income", params=params)
     
     if result["success"]:
         data = result["data"]
-        receivables = data.get("results", []) if isinstance(data, dict) else data
+        income_data = data.get("data", []) if isinstance(data, dict) else data
         
         return {
             "success": True,
-            "message": f"✅ Encontrados {len(receivables)} títulos a receber",
-            "receivables": receivables,
-            "count": len(receivables),
+            "message": f"✅ Encontradas {len(income_data)} parcelas a receber",
+            "income_data": income_data,
+            "count": len(income_data),
+            "period": f"{start_date} a {end_date}",
+            "selection_type": selection_type,
             "filters": params
         }
     
     return {
         "success": False,
-        "message": "❌ Erro ao buscar títulos a receber",
+        "message": "❌ Erro ao buscar parcelas a receber",
+        "error": result.get("error"),
+        "details": result.get("message")
+    }
+
+@mcp.tool
+async def get_sienge_accounts_receivable_by_bills(bills_ids: List[int], correction_indexer_id: Optional[int] = None,
+                                                correction_date: Optional[str] = None) -> Dict:
+    """
+    Consulta parcelas dos títulos informados via API bulk-data
+    
+    Args:
+        bills_ids: Lista de códigos dos títulos - OBRIGATÓRIO
+        correction_indexer_id: Código do indexador de correção
+        correction_date: Data para correção do indexador (YYYY-MM-DD)
+    """
+    params = {
+        "billsIds": bills_ids
+    }
+    
+    if correction_indexer_id:
+        params["correctionIndexerId"] = correction_indexer_id
+    if correction_date:
+        params["correctionDate"] = correction_date
+    
+    result = await make_sienge_bulk_request("GET", "/income/by-bills", params=params)
+    
+    if result["success"]:
+        data = result["data"]
+        income_data = data.get("data", []) if isinstance(data, dict) else data
+        
+        return {
+            "success": True,
+            "message": f"✅ Encontradas {len(income_data)} parcelas dos títulos informados",
+            "income_data": income_data,
+            "count": len(income_data),
+            "bills_consulted": bills_ids,
+            "filters": params
+        }
+    
+    return {
+        "success": False,
+        "message": "❌ Erro ao buscar parcelas dos títulos informados",
         "error": result.get("error"),
         "details": result.get("message")
     }
@@ -531,6 +673,206 @@ async def create_sienge_purchase_request(description: str, project_id: str, item
         "details": result.get("message")
     }
 
+# ============ NOTAS FISCAIS DE COMPRA ============
+
+@mcp.tool
+async def get_sienge_purchase_invoice(sequential_number: int) -> Dict:
+    """
+    Consulta nota fiscal de compra por número sequencial
+    
+    Args:
+        sequential_number: Número sequencial da nota fiscal
+    """
+    result = await make_sienge_request("GET", f"/purchase-invoices/{sequential_number}")
+    
+    if result["success"]:
+        return {
+            "success": True,
+            "message": f"✅ Nota fiscal {sequential_number} encontrada",
+            "invoice": result["data"]
+        }
+    
+    return {
+        "success": False,
+        "message": f"❌ Erro ao buscar nota fiscal {sequential_number}",
+        "error": result.get("error"),
+        "details": result.get("message")
+    }
+
+@mcp.tool
+async def get_sienge_purchase_invoice_items(sequential_number: int) -> Dict:
+    """
+    Consulta itens de uma nota fiscal de compra
+    
+    Args:
+        sequential_number: Número sequencial da nota fiscal
+    """
+    result = await make_sienge_request("GET", f"/purchase-invoices/{sequential_number}/items")
+    
+    if result["success"]:
+        data = result["data"]
+        items = data.get("results", []) if isinstance(data, dict) else data
+        metadata = data.get("resultSetMetadata", {}) if isinstance(data, dict) else {}
+        
+        return {
+            "success": True,
+            "message": f"✅ Encontrados {len(items)} itens na nota fiscal {sequential_number}",
+            "items": items,
+            "count": len(items),
+            "metadata": metadata
+        }
+    
+    return {
+        "success": False,
+        "message": f"❌ Erro ao buscar itens da nota fiscal {sequential_number}",
+        "error": result.get("error"),
+        "details": result.get("message")
+    }
+
+@mcp.tool
+async def create_sienge_purchase_invoice(document_id: str, number: str, supplier_id: int, company_id: int,
+                                       movement_type_id: int, movement_date: str, issue_date: str,
+                                       series: Optional[str] = None, notes: Optional[str] = None) -> Dict:
+    """
+    Cadastra uma nova nota fiscal de compra
+    
+    Args:
+        document_id: ID do documento (ex: "NF")
+        number: Número da nota fiscal
+        supplier_id: ID do fornecedor
+        company_id: ID da empresa
+        movement_type_id: ID do tipo de movimento
+        movement_date: Data do movimento (YYYY-MM-DD)
+        issue_date: Data de emissão (YYYY-MM-DD)
+        series: Série da nota fiscal (opcional)
+        notes: Observações (opcional)
+    """
+    invoice_data = {
+        "documentId": document_id,
+        "number": number,
+        "supplierId": supplier_id,
+        "companyId": company_id,
+        "movementTypeId": movement_type_id,
+        "movementDate": movement_date,
+        "issueDate": issue_date
+    }
+    
+    if series:
+        invoice_data["series"] = series
+    if notes:
+        invoice_data["notes"] = notes
+    
+    result = await make_sienge_request("POST", "/purchase-invoices", json_data=invoice_data)
+    
+    if result["success"]:
+        return {
+            "success": True,
+            "message": f"✅ Nota fiscal {number} criada com sucesso",
+            "invoice": result["data"]
+        }
+    
+    return {
+        "success": False,
+        "message": f"❌ Erro ao criar nota fiscal {number}",
+        "error": result.get("error"),
+        "details": result.get("message")
+    }
+
+@mcp.tool
+async def add_items_to_purchase_invoice(sequential_number: int, deliveries_order: List[Dict[str, Any]],
+                                      copy_notes_purchase_orders: bool = True, copy_notes_resources: bool = False,
+                                      copy_attachments_purchase_orders: bool = True) -> Dict:
+    """
+    Insere itens em uma nota fiscal a partir de entregas de pedidos de compra
+    
+    Args:
+        sequential_number: Número sequencial da nota fiscal
+        deliveries_order: Lista de entregas com estrutura:
+            - purchaseOrderId: ID do pedido de compra
+            - itemNumber: Número do item no pedido
+            - deliveryScheduleNumber: Número da programação de entrega
+            - deliveredQuantity: Quantidade entregue
+            - keepBalance: Manter saldo (true/false)
+        copy_notes_purchase_orders: Copiar observações dos pedidos de compra
+        copy_notes_resources: Copiar observações dos recursos
+        copy_attachments_purchase_orders: Copiar anexos dos pedidos de compra
+    """
+    item_data = {
+        "deliveriesOrder": deliveries_order,
+        "copyNotesPurchaseOrders": copy_notes_purchase_orders,
+        "copyNotesResources": copy_notes_resources,
+        "copyAttachmentsPurchaseOrders": copy_attachments_purchase_orders
+    }
+    
+    result = await make_sienge_request("POST", f"/purchase-invoices/{sequential_number}/items/purchase-orders/delivery-schedules", json_data=item_data)
+    
+    if result["success"]:
+        return {
+            "success": True,
+            "message": f"✅ Itens adicionados à nota fiscal {sequential_number} com sucesso",
+            "item": result["data"]
+        }
+    
+    return {
+        "success": False,
+        "message": f"❌ Erro ao adicionar itens à nota fiscal {sequential_number}",
+        "error": result.get("error"),
+        "details": result.get("message")
+    }
+
+@mcp.tool
+async def get_sienge_purchase_invoices_deliveries_attended(bill_id: Optional[int] = None, sequential_number: Optional[int] = None,
+                                                         purchase_order_id: Optional[int] = None, invoice_item_number: Optional[int] = None,
+                                                         purchase_order_item_number: Optional[int] = None, 
+                                                         limit: Optional[int] = 100, offset: Optional[int] = 0) -> Dict:
+    """
+    Lista entregas atendidas entre pedidos de compra e notas fiscais
+    
+    Args:
+        bill_id: ID do título da nota fiscal
+        sequential_number: Número sequencial da nota fiscal
+        purchase_order_id: ID do pedido de compra
+        invoice_item_number: Número do item da nota fiscal
+        purchase_order_item_number: Número do item do pedido de compra
+        limit: Máximo de registros (padrão: 100, máximo: 200)
+        offset: Deslocamento (padrão: 0)
+    """
+    params = {"limit": min(limit or 100, 200), "offset": offset or 0}
+    
+    if bill_id:
+        params["billId"] = bill_id
+    if sequential_number:
+        params["sequentialNumber"] = sequential_number
+    if purchase_order_id:
+        params["purchaseOrderId"] = purchase_order_id
+    if invoice_item_number:
+        params["invoiceItemNumber"] = invoice_item_number
+    if purchase_order_item_number:
+        params["purchaseOrderItemNumber"] = purchase_order_item_number
+    
+    result = await make_sienge_request("GET", "/purchase-invoices/deliveries-attended", params=params)
+    
+    if result["success"]:
+        data = result["data"]
+        deliveries = data.get("results", []) if isinstance(data, dict) else data
+        metadata = data.get("resultSetMetadata", {}) if isinstance(data, dict) else {}
+        
+        return {
+            "success": True,
+            "message": f"✅ Encontradas {len(deliveries)} entregas atendidas",
+            "deliveries": deliveries,
+            "count": len(deliveries),
+            "metadata": metadata,
+            "filters": params
+        }
+    
+    return {
+        "success": False,
+        "message": "❌ Erro ao buscar entregas atendidas",
+        "error": result.get("error"),
+        "details": result.get("message")
+    }
+
 # ============ ESTOQUE ============
 
 @mcp.tool
@@ -601,39 +943,100 @@ async def get_sienge_stock_reservations(limit: Optional[int] = 50) -> Dict:
 # ============ PROJETOS/OBRAS ============
 
 @mcp.tool
-async def get_sienge_projects(limit: Optional[int] = 50, offset: Optional[int] = 0, status: Optional[str] = None, search: Optional[str] = None) -> Dict:
+async def get_sienge_projects(limit: Optional[int] = 100, offset: Optional[int] = 0, company_id: Optional[int] = None, 
+                            enterprise_type: Optional[int] = None, receivable_register: Optional[str] = None,
+                            only_buildings_enabled: Optional[bool] = False) -> Dict:
     """
-    Busca projetos/obras no Sienge
+    Busca empreendimentos/obras no Sienge
     
     Args:
-        limit: Máximo de registros (padrão: 50)
+        limit: Máximo de registros (padrão: 100, máximo: 200)
         offset: Pular registros (padrão: 0)
-        status: Filtrar por status
-        search: Buscar por nome
+        company_id: Código da empresa
+        enterprise_type: Tipo do empreendimento (1: Obra e Centro de custo, 2: Obra, 3: Centro de custo, 4: Centro de custo associado a obra)
+        receivable_register: Filtro de registro de recebíveis (B3, CERC)
+        only_buildings_enabled: Retornar apenas obras habilitadas para integração orçamentária
     """
-    params = {"limit": min(limit or 50, 200), "offset": offset or 0}
+    params = {"limit": min(limit or 100, 200), "offset": offset or 0}
     
-    if status:
-        params["status"] = status
-    if search:
-        params["search"] = search
+    if company_id:
+        params["companyId"] = company_id
+    if enterprise_type:
+        params["type"] = enterprise_type
+    if receivable_register:
+        params["receivableRegister"] = receivable_register
+    if only_buildings_enabled:
+        params["onlyBuildingsEnabledForIntegration"] = only_buildings_enabled
     
-    result = await make_sienge_request("GET", "/projects", params=params)
+    result = await make_sienge_request("GET", "/enterprises", params=params)
     
     if result["success"]:
         data = result["data"]
-        projects = data.get("results", []) if isinstance(data, dict) else data
+        enterprises = data.get("results", []) if isinstance(data, dict) else data
+        metadata = data.get("resultSetMetadata", {}) if isinstance(data, dict) else {}
         
         return {
             "success": True,
-            "message": f"✅ Encontrados {len(projects)} projetos",
-            "projects": projects,
-            "count": len(projects)
+            "message": f"✅ Encontrados {len(enterprises)} empreendimentos",
+            "enterprises": enterprises,
+            "count": len(enterprises),
+            "metadata": metadata,
+            "filters": params
         }
     
     return {
         "success": False,
-        "message": "❌ Erro ao buscar projetos",
+        "message": "❌ Erro ao buscar empreendimentos",
+        "error": result.get("error"),
+        "details": result.get("message")
+    }
+
+@mcp.tool
+async def get_sienge_enterprise_by_id(enterprise_id: int) -> Dict:
+    """
+    Busca um empreendimento específico por ID no Sienge
+    
+    Args:
+        enterprise_id: ID do empreendimento
+    """
+    result = await make_sienge_request("GET", f"/enterprises/{enterprise_id}")
+    
+    if result["success"]:
+        return {
+            "success": True,
+            "message": f"✅ Empreendimento {enterprise_id} encontrado",
+            "enterprise": result["data"]
+        }
+    
+    return {
+        "success": False,
+        "message": f"❌ Erro ao buscar empreendimento {enterprise_id}",
+        "error": result.get("error"),
+        "details": result.get("message")
+    }
+
+@mcp.tool
+async def get_sienge_enterprise_groupings(enterprise_id: int) -> Dict:
+    """
+    Busca agrupamentos de unidades de um empreendimento específico
+    
+    Args:
+        enterprise_id: ID do empreendimento
+    """
+    result = await make_sienge_request("GET", f"/enterprises/{enterprise_id}/groupings")
+    
+    if result["success"]:
+        groupings = result["data"]
+        return {
+            "success": True,
+            "message": f"✅ Agrupamentos do empreendimento {enterprise_id} encontrados",
+            "groupings": groupings,
+            "count": len(groupings) if isinstance(groupings, list) else 0
+        }
+    
+    return {
+        "success": False,
+        "message": f"❌ Erro ao buscar agrupamentos do empreendimento {enterprise_id}",
         "error": result.get("error"),
         "details": result.get("message")
     }
