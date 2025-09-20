@@ -1,19 +1,8 @@
 {
-  "_comment": "Configuração ECBIESEK - Usar com pipx (Recomendado - sem instalação)",
   "mcpServers": {
-    "SiengeECBIESEK": {
-      "command": "pipx",
-      "args": [
-        "run",
-        "sienge-ecbiesek-mcp@latest"
-      ],
-      "env": {
-        "SIENGE_BASE_URL": "https://api.sienge.com.br",
-        "SIENGE_SUBDOMAIN": "biesek",
-        "SIENGE_USERNAME": "",
-        "SIENGE_PASSWORD": "",
-        "REQUEST_TIMEOUT": "30"
-      }
-      }
+    "sienge-mcp-railway": {
+      "command": "uv",
+      "args": ["tool", "run", "mcp-client-sse", "https://sienge-mcp-production.up.railway.app/mcp"]
     }
- }
+  }
+}
