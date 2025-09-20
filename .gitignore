@@ -105,6 +105,7 @@ settings.local.json
 # Claude Desktop configs locais (manter apenas template)
 claude_desktop_config.json
 claude_config_teste_local.json
+claude_desktop_config_teste_local.json
 
 # Arquivos de teste com dados sensíveis
 test_credentials.py

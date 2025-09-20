@@ -1,8 +1,12 @@
 include README.md
 include LICENSE
-include DOCUMENTATION.md
+include COMO_TESTAR.md
+include GUIA_ATUALIZACAO.md
+include PUBLICADO_PYPI.md
 include requirements.txt
-include .env.template
-recursive-include src/sienge_mcp *.py
+include claude_desktop_config.template.json
+recursive-include src/sienge_mcp *.py *.json *.md *.txt
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
+recursive-exclude * .DS_Store
+recursive-exclude * Thumbs.db

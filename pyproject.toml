@@ -4,19 +4,31 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sienge-ecbiesek-mcp"
-version = "1.1.0"
-description = "Sienge ECBIESEK MCP Server - Model Context Protocol integration for Sienge API (ECBIESEK Company)"
+version = "1.1.1"
+description = "Model Context Protocol (MCP) server for Sienge API integration - Brazilian construction management system"
 authors = [
     {name = "ECBIESEK", email = "ti@ecbiesek.com"}
 ]
-readme = "README.md"
-license = {text = "MIT"}
+readme = {file = "README.md", content-type = "text/markdown"}
+license = {file = "LICENSE"}
 requires-python = ">=3.9"
-keywords = ["sienge", "mcp", "claude", "api", "construction", "ecbiesek"]
+keywords = [
+    "sienge", 
+    "mcp", 
+    "model-context-protocol", 
+    "claude", 
+    "api", 
+    "construction", 
+    "erp", 
+    "brazil", 
+    "ecbiesek",
+    "fastmcp",
+    "ai-integration"
+]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: End Users/Desktop",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
@@ -25,6 +37,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Office/Business :: Financial",
+    "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Environment :: Console",
+    "Framework :: FastAPI"
 ]
 
 dependencies = [
@@ -42,10 +58,13 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Moizas951/Sienge-mcp"
-Documentation = "https://github.com/Moizas951/Sienge-mcp#readme"
-Repository = "https://github.com/Moizas951/Sienge-mcp.git"
-Issues = "https://github.com/Moizas951/Sienge-mcp/issues"
+Homepage = "https://github.com/INOTECH-ecbiesek/Sienge-MCP"
+Documentation = "https://github.com/INOTECH-ecbiesek/Sienge-MCP#readme"
+Repository = "https://github.com/INOTECH-ecbiesek/Sienge-MCP.git"
+Issues = "https://github.com/INOTECH-ecbiesek/Sienge-MCP/issues"
+"Bug Reports" = "https://github.com/INOTECH-ecbiesek/Sienge-MCP/issues"
+"Source Code" = "https://github.com/INOTECH-ecbiesek/Sienge-MCP"
+"PyPI" = "https://pypi.org/project/sienge-ecbiesek-mcp/"
 
 [project.scripts]
 sienge-ecbiesek-mcp = "sienge_mcp.server:main"
