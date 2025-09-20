@@ -1,0 +1,106 @@
+name: 🧪 Tests and Quality Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build pytest flake8
+        pip install -e .
+    
+    - name: Lint with flake8
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Run full linting with configuration from .flake8
+        flake8 src --count --statistics
+    
+    - name: Test package import
+      run: |
+        python -c "import sienge_mcp; print('✅ Package imports successfully')"
+
+  quality-check:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine toml
+        pip install -e .
+    
+    - name: Check package can be built
+      run: |
+        python -m build
+        echo "✅ Package builds successfully!"
+    
+    - name: Check package metadata
+      run: |
+        python -m twine check dist/*
+        echo "✅ Package metadata is valid!"
+    
+    - name: Display current version
+      run: |
+        python -c "
+        import toml
+        with open('pyproject.toml', 'r') as f:
+            data = toml.load(f)
+        print(f'� Current version: {data[\"project\"][\"version\"]}')
+        print(f'� Description: {data[\"project\"][\"description\"]}')
+        "
+
+  summary:
+    needs: [test, quality-check]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Test Results
+      run: |
+        if [ "${{ needs.test.result }}" == "success" ]; then
+          echo "✅ Tests passed"
+        else
+          echo "❌ Tests failed"
+        fi
+        
+        if [ "${{ needs.quality-check.result }}" == "success" ]; then
+          echo "✅ Quality checks passed"
+        else
+          echo "❌ Quality checks failed"
+        fi
+        
+        echo ""
+        echo "🚀 Ready for manual deployment!"
+        echo "📝 To deploy: python -m build && twine upload dist/*"
