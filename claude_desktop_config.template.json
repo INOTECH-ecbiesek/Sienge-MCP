@@ -14,22 +14,6 @@
         "SIENGE_PASSWORD": "ehKLwkgJAnzA6xxL8ZLXSrzbigKnfMt7",
         "REQUEST_TIMEOUT": "30"
       }
-    }
-  },
-  
-  "_comment_local": "Configuração ECBIESEK para desenvolvimento local",  
-  "_mcpServers_local": {
-    "sienge-ecbiesek-dev": {
-      "command": "python",
-      "args": ["sienge.py"],
-      "cwd": "C:\\CAMINHO\\PARA\\PROJETO\\ECBIESEK",
-      "env": {
-        "SIENGE_BASE_URL": "https://api.sienge.com.br",
-        "SIENGE_SUBDOMAIN": "ecbiesek",
-        "SIENGE_USERNAME": "usuario_ecbiesek",
-        "SIENGE_PASSWORD": "senha_ecbiesek",
-        "SIENGE_TIMEOUT": "30"
       }
     }
-  }
-}
+ }
