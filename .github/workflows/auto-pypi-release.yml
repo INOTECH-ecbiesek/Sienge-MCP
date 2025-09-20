@@ -1,0 +1,216 @@
+name: 🚀 Auto PyPI Release
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11, 3.12]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build pytest flake8
+        pip install -e .
+    
+    - name: Lint with flake8
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings
+        flake8 src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Test package import
+      run: |
+        python -c "import sienge_mcp; print('✅ Package imports successfully')"
+
+  auto-version:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      changed: ${{ steps.version.outputs.changed }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install toml
+    
+    - name: Auto-increment version
+      id: version
+      run: |
+        python << 'EOF'
+        import toml
+        import os
+        import subprocess
+        from datetime import datetime
+        
+        # Read current version
+        with open('pyproject.toml', 'r') as f:
+            data = toml.load(f)
+        
+        current_version = data['project']['version']
+        print(f"Current version: {current_version}")
+        
+        # Get commit count since last version tag
+        try:
+            # Get the latest tag
+            result = subprocess.run(['git', 'describe', '--tags', '--abbrev=0'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                last_tag = result.stdout.strip()
+                # Count commits since last tag
+                result = subprocess.run(['git', 'rev-list', '--count', f'{last_tag}..HEAD'], 
+                                      capture_output=True, text=True)
+                commit_count = int(result.stdout.strip()) if result.returncode == 0 else 1
+            else:
+                commit_count = 1
+        except:
+            commit_count = 1
+        
+        # Only increment if there are new commits
+        if commit_count > 0:
+            # Parse version (MAJOR.MINOR.PATCH)
+            major, minor, patch = map(int, current_version.split('.'))
+            
+            # Auto-increment patch version
+            new_version = f"{major}.{minor}.{patch + commit_count}"
+            
+            # Update pyproject.toml
+            data['project']['version'] = new_version
+            with open('pyproject.toml', 'w') as f:
+                toml.dump(data, f)
+            
+            print(f"Updated version to: {new_version}")
+            
+            # Set outputs
+            with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                f.write(f"version={new_version}\n")
+                f.write(f"changed=true\n")
+        else:
+            print("No new commits, keeping current version")
+            with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                f.write(f"version={current_version}\n")
+                f.write(f"changed=false\n")
+        EOF
+    
+    - name: Commit version update
+      if: steps.version.outputs.changed == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add pyproject.toml
+        git commit -m "🔖 Auto-increment version to ${{ steps.version.outputs.version }}" || exit 0
+        git push
+
+  build-and-publish:
+    needs: [test, auto-version]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main  # Get the latest commit with version update
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build package
+      run: |
+        python -m build
+    
+    - name: Check package
+      run: |
+        python -m twine check dist/*
+    
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        python -m twine upload dist/*
+    
+    - name: Create GitHub Release
+      if: needs.auto-version.outputs.changed == 'true'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ needs.auto-version.outputs.version }}
+        name: 🚀 Release v${{ needs.auto-version.outputs.version }}
+        body: |
+          ## 🚀 Auto Release v${{ needs.auto-version.outputs.version }}
+          
+          ### 📦 **What's New**
+          - Automated release from commit: ${{ github.sha }}
+          - Built and published to PyPI automatically
+          - Version auto-incremented based on commits
+          
+          ### 📦 **Installation**
+          ```bash
+          pip install --upgrade sienge-ecbiesek-mcp
+          # or
+          pipx install sienge-ecbiesek-mcp@latest
+          ```
+          
+          ### 🔗 **Links**
+          - **PyPI**: https://pypi.org/project/sienge-ecbiesek-mcp/${{ needs.auto-version.outputs.version }}/
+          - **Commit**: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+          
+          **Developed by INOTECH-ecbiesek** 🚀
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    needs: [build-and-publish, auto-version]
+    runs-on: ubuntu-latest
+    if: always() && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Notify Success
+      if: needs.build-and-publish.result == 'success'
+      run: |
+        echo "✅ Successfully published v${{ needs.auto-version.outputs.version }} to PyPI!"
+        echo "🔗 https://pypi.org/project/sienge-ecbiesek-mcp/${{ needs.auto-version.outputs.version }}/"
+    
+    - name: Notify Failure
+      if: needs.build-and-publish.result == 'failure'
+      run: |
+        echo "❌ Failed to publish to PyPI"
+        exit 1
