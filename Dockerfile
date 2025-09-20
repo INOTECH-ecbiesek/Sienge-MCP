@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar arquivos de dependências
-COPY requirements.txt pyproject.toml ./
+COPY requirements.txt pyproject.toml app.py ./
 COPY src/ ./src/
 
 # Instalar dependências Python
