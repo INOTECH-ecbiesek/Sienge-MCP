@@ -10,8 +10,8 @@
       "env": {
         "SIENGE_BASE_URL": "https://api.sienge.com.br",
         "SIENGE_SUBDOMAIN": "biesek",
-        "SIENGE_USERNAME": "biesek-eloi",
-        "SIENGE_PASSWORD": "ehKLwkgJAnzA6xxL8ZLXSrzbigKnfMt7",
+        "SIENGE_USERNAME": "",
+        "SIENGE_PASSWORD": "",
         "REQUEST_TIMEOUT": "30"
       }
       }
