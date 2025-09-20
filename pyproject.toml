@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sienge-ecbiesek-mcp"
 version = "1.1.1"
-description = "Model Context Protocol (MCP) server for Sienge API integration - Brazilian construction management system"
+description = "🏗️ Model Context Protocol (MCP) server for Sienge API integration - Brazilian construction ERP system. Connect Claude AI to Sienge with 9 powerful tools for accounts receivable, purchase invoices, and project management."
 authors = [
     {name = "ECBIESEK", email = "ti@ecbiesek.com"}
 ]
