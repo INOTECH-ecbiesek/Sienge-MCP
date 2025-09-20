@@ -104,7 +104,40 @@ settings.local.json
 
 # Claude Desktop configs locais (manter apenas template)
 claude_desktop_config.json
+claude_config_teste_local.json
 
 # Arquivos de teste com dados sensíveis
 test_credentials.py
 test_local.py
+
+# Arquivos específicos do Sienge MCP que não devem ser versionados
+*.egg-info/
+src/**/*.egg-info/
+src/**/sienge_ecbiesek_mcp.egg-info/
+
+# Arquivos de build e distribuição Python
+dist/
+build/
+*.whl
+*.tar.gz
+
+# Certificados e chaves privadas
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+
+# Configurações específicas do ambiente de desenvolvimento
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Arquivos do IDE
+.idea/
+*.swp
+*.swo
+*~
