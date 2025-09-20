@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "mcp": {
+    "name": "sienge-ecbiesek-mcp",
+    "version": "1.1.5",
+    "description": "Model Context Protocol server for Sienge API integration",
+    "main": "sienge_mcp.server:main",
+    "runtime": "python",
+    "package": {
+      "type": "pypi",
+      "name": "sienge-ecbiesek-mcp"
+    },
+    "capabilities": {
+      "tools": true,
+      "resources": false,
+      "prompts": false
+    },
+    "environment_variables": {
+      "required": [
+        "SIENGE_SUBDOMAIN",
+        "SIENGE_USERNAME", 
+        "SIENGE_PASSWORD"
+      ],
+      "optional": [
+        "SIENGE_BASE_URL",
+        "SIENGE_API_KEY",
+        "SIENGE_TIMEOUT"
+      ]
+    }
+  }
+}

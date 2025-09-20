@@ -1,0 +1,125 @@
+{
+  "name": "sienge-ecbiesek-mcp",
+  "version": "1.1.5",
+  "displayName": "Sienge ERP Integration",
+  "description": "Model Context Protocol (MCP) server for Sienge API integration - Brazilian construction ERP system. Connect Claude AI to Sienge with 9 powerful tools for accounts receivable, purchase invoices, and project management.",
+  "author": {
+    "name": "ECBIESEK",
+    "email": "ti@ecbiesek.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/INOTECH-ecbiesek/Sienge-MCP",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/INOTECH-ecbiesek/Sienge-MCP"
+  },
+  "categories": [
+    "business", 
+    "productivity",
+    "data-analysis"
+  ],
+  "keywords": [
+    "sienge",
+    "mcp", 
+    "model-context-protocol",
+    "claude",
+    "api",
+    "construction",
+    "erp",
+    "brazil",
+    "accounts-receivable",
+    "purchase-invoices"
+  ],
+  "runtime": {
+    "python": {
+      "package": "sienge-ecbiesek-mcp",
+      "executable": "sienge-ecbiesek-mcp"
+    }
+  },
+  "configuration": {
+    "env": {
+      "SIENGE_BASE_URL": {
+        "description": "Sienge API base URL",
+        "default": "https://api.sienge.com.br",
+        "required": true
+      },
+      "SIENGE_SUBDOMAIN": {
+        "description": "Your Sienge company subdomain",
+        "required": true,
+        "type": "string"
+      },
+      "SIENGE_USERNAME": {
+        "description": "Your Sienge username",
+        "required": true,
+        "type": "string",
+        "sensitive": true
+      },
+      "SIENGE_PASSWORD": {
+        "description": "Your Sienge password", 
+        "required": true,
+        "type": "string",
+        "sensitive": true
+      },
+      "SIENGE_API_KEY": {
+        "description": "Optional Sienge API key (alternative to username/password)",
+        "required": false,
+        "type": "string",
+        "sensitive": true
+      },
+      "SIENGE_TIMEOUT": {
+        "description": "Request timeout in seconds",
+        "default": "30",
+        "required": false,
+        "type": "number"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "test_sienge_connection",
+      "description": "Tests connection to Sienge API"
+    },
+    {
+      "name": "get_sienge_accounts_receivable", 
+      "description": "Get accounts receivable with date filters using bulk-data API"
+    },
+    {
+      "name": "get_sienge_projects",
+      "description": "List all available projects/enterprises"
+    },
+    {
+      "name": "get_sienge_purchase_requests",
+      "description": "Get purchase requests from the system"
+    },
+    {
+      "name": "get_sienge_purchase_invoice",
+      "description": "Get purchase invoice by sequential number"
+    },
+    {
+      "name": "get_sienge_purchase_invoice_items",
+      "description": "Get items from a purchase invoice"
+    },
+    {
+      "name": "create_sienge_purchase_invoice",
+      "description": "Create a new purchase invoice"
+    },
+    {
+      "name": "add_items_to_purchase_invoice", 
+      "description": "Add items to purchase invoice from purchase orders"
+    },
+    {
+      "name": "get_sienge_customers",
+      "description": "Search customers with filters"
+    }
+  ],
+  "pricing": {
+    "model": "free"
+  },
+  "links": {
+    "documentation": "https://github.com/INOTECH-ecbiesek/Sienge-MCP#readme",
+    "support": "https://github.com/INOTECH-ecbiesek/Sienge-MCP/issues",
+    "homepage": "https://github.com/INOTECH-ecbiesek/Sienge-MCP"
+  },
+  "platforms": ["windows", "macos", "linux"],
+  "mcpVersion": "1.0.0"
+}
