@@ -4,8 +4,8 @@ Script de inicialização para Railway
 """
 
 import os
-import uvicorn
-from src.sienge_mcp.server import mcp
+import subprocess
+import sys
 
 if __name__ == "__main__":
     # Railway define automaticamente a porta via variável PORT
@@ -15,10 +15,12 @@ if __name__ == "__main__":
     print(f"🌐 FastMCP Server rodando em: http://0.0.0.0:{port}")
     print(f"📚 Documentação disponível em: http://0.0.0.0:{port}/docs")
     
-    # Usar uvicorn para rodar o servidor FastMCP como HTTP
-    uvicorn.run(
-        mcp.app,  # O app FastAPI do FastMCP
-        host="0.0.0.0",
-        port=port,
-        log_level="info"
-    )
+    # Usar o comando fastmcp diretamente
+    cmd = [
+        sys.executable, "-m", "fastmcp",
+        "src.sienge_mcp.server:mcp",
+        "--host", "0.0.0.0",
+        "--port", str(port)
+    ]
+    
+    subprocess.run(cmd)
