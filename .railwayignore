@@ -1,0 +1,55 @@
+# Railway ignore file - arquivos que não precisam ir para o deploy
+
+# Arquivos de desenvolvimento
+*.md
+!RAILWAY_DEPLOY.md
+.git/
+.gitignore
+.env
+.env.local
+.env.example
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS específico
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Scripts específicos do Windows
+*.ps1
+setup.ps1
+atualizar.ps1
+build-package.ps1
+
+# Configurações locais
+claude_config_teste_local.json
+claude_desktop_config.json
+claude_desktop_config.template.json
+
+# Documentação desnecessária no deploy
+COMO_TESTAR.md
+GUIA_ATUALIZACAO.md
+PUBLICADO_PYPI.md
