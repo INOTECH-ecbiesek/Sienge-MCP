@@ -14,7 +14,7 @@ from datetime import datetime
 # Carrega as variáveis de ambiente
 load_dotenv()
 
-mcp = FastMCP("Sienge API Integration 🏗️")
+mcp = FastMCP("Sienge API Integration 🏗️ - ChatGPT Compatible")
 
 # Configurações da API do Sienge
 SIENGE_BASE_URL = os.getenv("SIENGE_BASE_URL", "https://api.sienge.com.br")
@@ -1121,6 +1121,610 @@ async def get_sienge_unit_cost_tables(
         "message": "❌ Erro ao buscar tabelas de custos",
         "error": result.get("error"),
         "details": result.get("message"),
+    }
+
+
+# ============ SEARCH UNIVERSAL (COMPATIBILIDADE CHATGPT) ============
+
+
+@mcp.tool
+async def search_sienge_data(
+    query: str,
+    entity_type: Optional[str] = None,
+    limit: Optional[int] = 20,
+    filters: Optional[Dict[str, Any]] = None
+) -> Dict:
+    """
+    Busca universal no Sienge - compatível com ChatGPT/OpenAI MCP
+    
+    Permite buscar em múltiplas entidades do Sienge de forma unificada.
+    
+    Args:
+        query: Termo de busca (nome, código, descrição, etc.)
+        entity_type: Tipo de entidade (customers, creditors, projects, bills, purchase_orders, etc.)
+        limit: Máximo de registros (padrão: 20, máximo: 100)
+        filters: Filtros específicos por tipo de entidade
+    """
+    search_results = []
+    limit = min(limit or 20, 100)
+    
+    # Se entity_type específico, buscar apenas nele
+    if entity_type:
+        result = await _search_specific_entity(entity_type, query, limit, filters or {})
+        if result["success"]:
+            return result
+        else:
+            return {
+                "success": False,
+                "message": f"❌ Erro na busca em {entity_type}",
+                "error": result.get("error"),
+                "query": query,
+                "entity_type": entity_type
+            }
+    
+    # Busca universal em múltiplas entidades
+    entities_to_search = [
+        ("customers", "clientes"),
+        ("creditors", "credores/fornecedores"), 
+        ("projects", "empreendimentos/obras"),
+        ("bills", "títulos a pagar"),
+        ("purchase_orders", "pedidos de compra")
+    ]
+    
+    total_found = 0
+    
+    for entity_key, entity_name in entities_to_search:
+        try:
+            entity_result = await _search_specific_entity(entity_key, query, min(5, limit), {})
+            if entity_result["success"] and entity_result.get("count", 0) > 0:
+                search_results.append({
+                    "entity_type": entity_key,
+                    "entity_name": entity_name,
+                    "count": entity_result["count"],
+                    "results": entity_result["data"][:5],  # Limitar a 5 por entidade na busca universal
+                    "has_more": entity_result["count"] > 5
+                })
+                total_found += entity_result["count"]
+        except Exception as e:
+            # Continuar com outras entidades se uma falhar
+            continue
+    
+    if search_results:
+        return {
+            "success": True,
+            "message": f"✅ Busca '{query}' encontrou resultados em {len(search_results)} entidades (total: {total_found} registros)",
+            "query": query,
+            "total_entities": len(search_results),
+            "total_records": total_found,
+            "results_by_entity": search_results,
+            "suggestion": "Use entity_type para buscar especificamente em uma entidade e obter mais resultados"
+        }
+    else:
+        return {
+            "success": False,
+            "message": f"❌ Nenhum resultado encontrado para '{query}'",
+            "query": query,
+            "searched_entities": [name for _, name in entities_to_search],
+            "suggestion": "Tente termos mais específicos ou use os tools específicos de cada entidade"
+        }
+
+
+async def _search_specific_entity(entity_type: str, query: str, limit: int, filters: Dict) -> Dict:
+    """Função auxiliar para buscar em uma entidade específica"""
+    
+    if entity_type == "customers":
+        result = await get_sienge_customers(limit=limit, search=query)
+        if result["success"]:
+            return {
+                "success": True,
+                "data": result["customers"],
+                "count": result["count"],
+                "entity_type": "customers"
+            }
+    
+    elif entity_type == "creditors":
+        result = await get_sienge_creditors(limit=limit, search=query)
+        if result["success"]:
+            return {
+                "success": True,
+                "data": result["creditors"],
+                "count": result["count"],
+                "entity_type": "creditors"
+            }
+    
+    elif entity_type == "projects" or entity_type == "enterprises":
+        # Para projetos, usar filtros mais específicos se disponível
+        company_id = filters.get("company_id")
+        result = await get_sienge_projects(limit=limit, company_id=company_id)
+        if result["success"]:
+            # Filtrar por query se fornecida
+            projects = result["enterprises"]
+            if query:
+                projects = [
+                    p for p in projects 
+                    if query.lower() in str(p.get("description", "")).lower() 
+                    or query.lower() in str(p.get("name", "")).lower()
+                    or query.lower() in str(p.get("code", "")).lower()
+                ]
+            return {
+                "success": True,
+                "data": projects,
+                "count": len(projects),
+                "entity_type": "projects"
+            }
+    
+    elif entity_type == "bills":
+        # Para títulos, usar data padrão se não especificada
+        start_date = filters.get("start_date")
+        end_date = filters.get("end_date") 
+        result = await get_sienge_bills(
+            start_date=start_date, 
+            end_date=end_date, 
+            limit=limit
+        )
+        if result["success"]:
+            return {
+                "success": True,
+                "data": result["bills"],
+                "count": result["count"],
+                "entity_type": "bills"
+            }
+    
+    elif entity_type == "purchase_orders":
+        result = await get_sienge_purchase_orders(limit=limit)
+        if result["success"]:
+            orders = result["purchase_orders"]
+            # Filtrar por query se fornecida
+            if query:
+                orders = [
+                    o for o in orders 
+                    if query.lower() in str(o.get("description", "")).lower()
+                    or query.lower() in str(o.get("id", "")).lower()
+                ]
+            return {
+                "success": True,
+                "data": orders,
+                "count": len(orders),
+                "entity_type": "purchase_orders"
+            }
+    
+    # Se chegou aqui, entidade não suportada ou erro
+    return {
+        "success": False,
+        "error": f"Entidade '{entity_type}' não suportada ou erro na busca",
+        "supported_entities": ["customers", "creditors", "projects", "bills", "purchase_orders"]
+    }
+
+
+@mcp.tool
+async def list_sienge_entities() -> Dict:
+    """
+    Lista todas as entidades disponíveis no Sienge MCP para busca
+    
+    Retorna informações sobre os tipos de dados que podem ser consultados
+    """
+    entities = [
+        {
+            "type": "customers",
+            "name": "Clientes",
+            "description": "Clientes cadastrados no sistema",
+            "search_fields": ["nome", "documento", "email"],
+            "tools": ["get_sienge_customers", "search_sienge_data"]
+        },
+        {
+            "type": "creditors", 
+            "name": "Credores/Fornecedores",
+            "description": "Fornecedores e credores cadastrados",
+            "search_fields": ["nome", "documento"],
+            "tools": ["get_sienge_creditors", "get_sienge_creditor_bank_info"]
+        },
+        {
+            "type": "projects",
+            "name": "Empreendimentos/Obras", 
+            "description": "Projetos e obras cadastrados",
+            "search_fields": ["código", "descrição", "nome"],
+            "tools": ["get_sienge_projects", "get_sienge_enterprise_by_id"]
+        },
+        {
+            "type": "bills",
+            "name": "Títulos a Pagar",
+            "description": "Contas a pagar e títulos financeiros",
+            "search_fields": ["número", "credor", "valor"],
+            "tools": ["get_sienge_bills"]
+        },
+        {
+            "type": "purchase_orders",
+            "name": "Pedidos de Compra",
+            "description": "Pedidos de compra e solicitações",
+            "search_fields": ["id", "descrição", "status"],
+            "tools": ["get_sienge_purchase_orders", "get_sienge_purchase_requests"]
+        },
+        {
+            "type": "invoices",
+            "name": "Notas Fiscais",
+            "description": "Notas fiscais de compra",
+            "search_fields": ["número", "série", "fornecedor"],
+            "tools": ["get_sienge_purchase_invoice"]
+        },
+        {
+            "type": "stock",
+            "name": "Estoque",
+            "description": "Inventário e movimentações de estoque",
+            "search_fields": ["centro_custo", "recurso"],
+            "tools": ["get_sienge_stock_inventory", "get_sienge_stock_reservations"]
+        },
+        {
+            "type": "financial",
+            "name": "Financeiro",
+            "description": "Contas a receber e movimentações financeiras",
+            "search_fields": ["período", "cliente", "valor"],
+            "tools": ["get_sienge_accounts_receivable"]
+        }
+    ]
+    
+    return {
+        "success": True,
+        "message": f"✅ {len(entities)} tipos de entidades disponíveis no Sienge",
+        "entities": entities,
+        "total_tools": sum(len(e["tools"]) for e in entities),
+        "usage_example": {
+            "search_all": "search_sienge_data('nome_cliente')",
+            "search_specific": "search_sienge_data('nome_cliente', entity_type='customers')",
+            "direct_access": "get_sienge_customers(search='nome_cliente')"
+        }
+    }
+
+
+# ============ PAGINATION E NAVEGAÇÃO ============
+
+
+@mcp.tool 
+async def get_sienge_data_paginated(
+    entity_type: str,
+    page: int = 1,
+    page_size: int = 20,
+    filters: Optional[Dict[str, Any]] = None,
+    sort_by: Optional[str] = None
+) -> Dict:
+    """
+    Busca dados do Sienge com paginação avançada - compatível com ChatGPT
+    
+    Args:
+        entity_type: Tipo de entidade (customers, creditors, projects, bills, etc.)
+        page: Número da página (começando em 1)
+        page_size: Registros por página (máximo 50)
+        filters: Filtros específicos da entidade
+        sort_by: Campo para ordenação (se suportado)
+    """
+    page_size = min(page_size, 50)
+    offset = (page - 1) * page_size
+    
+    filters = filters or {}
+    
+    # Mapear para os tools existentes com offset
+    if entity_type == "customers":
+        search = filters.get("search")
+        customer_type_id = filters.get("customer_type_id")
+        result = await get_sienge_customers(
+            limit=page_size,
+            offset=offset, 
+            search=search,
+            customer_type_id=customer_type_id
+        )
+        
+    elif entity_type == "creditors":
+        search = filters.get("search")
+        result = await get_sienge_creditors(
+            limit=page_size,
+            offset=offset,
+            search=search
+        )
+        
+    elif entity_type == "projects":
+        result = await get_sienge_projects(
+            limit=page_size,
+            offset=offset,
+            company_id=filters.get("company_id"),
+            enterprise_type=filters.get("enterprise_type")
+        )
+        
+    elif entity_type == "bills":
+        result = await get_sienge_bills(
+            start_date=filters.get("start_date"),
+            end_date=filters.get("end_date"),
+            creditor_id=filters.get("creditor_id"),
+            status=filters.get("status"),
+            limit=page_size
+        )
+        
+    else:
+        return {
+            "success": False,
+            "message": f"❌ Tipo de entidade '{entity_type}' não suportado para paginação",
+            "supported_types": ["customers", "creditors", "projects", "bills"]
+        }
+    
+    if result["success"]:
+        # Calcular informações de paginação
+        total_count = result.get("total_count", result.get("count", 0))
+        total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 1
+        
+        return {
+            "success": True,
+            "message": f"✅ Página {page} de {total_pages} - {entity_type}",
+            "data": result.get(entity_type, result.get("data", [])),
+            "pagination": {
+                "current_page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "total_records": total_count,
+                "has_next": page < total_pages,
+                "has_previous": page > 1,
+                "next_page": page + 1 if page < total_pages else None,
+                "previous_page": page - 1 if page > 1 else None
+            },
+            "entity_type": entity_type,
+            "filters_applied": filters
+        }
+    
+    return result
+
+
+@mcp.tool
+async def search_sienge_financial_data(
+    period_start: str,
+    period_end: str, 
+    search_type: str = "both",
+    amount_min: Optional[float] = None,
+    amount_max: Optional[float] = None,
+    customer_creditor_search: Optional[str] = None
+) -> Dict:
+    """
+    Busca avançada em dados financeiros do Sienge - Contas a Pagar e Receber
+    
+    Args:
+        period_start: Data inicial do período (YYYY-MM-DD)
+        period_end: Data final do período (YYYY-MM-DD)
+        search_type: Tipo de busca ("receivable", "payable", "both")
+        amount_min: Valor mínimo (opcional)
+        amount_max: Valor máximo (opcional)
+        customer_creditor_search: Buscar por nome de cliente/credor (opcional)
+    """
+    
+    financial_results = {
+        "receivable": {"success": False, "data": [], "count": 0, "error": None},
+        "payable": {"success": False, "data": [], "count": 0, "error": None}
+    }
+    
+    # Buscar contas a receber
+    if search_type in ["receivable", "both"]:
+        try:
+            receivable_result = await get_sienge_accounts_receivable(
+                start_date=period_start,
+                end_date=period_end,
+                selection_type="D"  # Por vencimento
+            )
+            
+            if receivable_result["success"]:
+                receivable_data = receivable_result["income_data"]
+                
+                # Aplicar filtros de valor se especificados
+                if amount_min is not None or amount_max is not None:
+                    filtered_data = []
+                    for item in receivable_data:
+                        amount = float(item.get("amount", 0) or 0)
+                        if amount_min is not None and amount < amount_min:
+                            continue
+                        if amount_max is not None and amount > amount_max:
+                            continue
+                        filtered_data.append(item)
+                    receivable_data = filtered_data
+                
+                # Aplicar filtro de cliente se especificado
+                if customer_creditor_search:
+                    search_lower = customer_creditor_search.lower()
+                    filtered_data = []
+                    for item in receivable_data:
+                        customer_name = str(item.get("customer_name", "")).lower()
+                        if search_lower in customer_name:
+                            filtered_data.append(item)
+                    receivable_data = filtered_data
+                
+                financial_results["receivable"] = {
+                    "success": True,
+                    "data": receivable_data,
+                    "count": len(receivable_data),
+                    "error": None
+                }
+            else:
+                financial_results["receivable"]["error"] = receivable_result.get("error")
+                
+        except Exception as e:
+            financial_results["receivable"]["error"] = str(e)
+    
+    # Buscar contas a pagar  
+    if search_type in ["payable", "both"]:
+        try:
+            payable_result = await get_sienge_bills(
+                start_date=period_start,
+                end_date=period_end,
+                limit=100
+            )
+            
+            if payable_result["success"]:
+                payable_data = payable_result["bills"]
+                
+                # Aplicar filtros de valor se especificados
+                if amount_min is not None or amount_max is not None:
+                    filtered_data = []
+                    for item in payable_data:
+                        amount = float(item.get("amount", 0) or 0)
+                        if amount_min is not None and amount < amount_min:
+                            continue
+                        if amount_max is not None and amount > amount_max:
+                            continue
+                        filtered_data.append(item)
+                    payable_data = filtered_data
+                
+                # Aplicar filtro de credor se especificado
+                if customer_creditor_search:
+                    search_lower = customer_creditor_search.lower()
+                    filtered_data = []
+                    for item in payable_data:
+                        creditor_name = str(item.get("creditor_name", "")).lower()
+                        if search_lower in creditor_name:
+                            filtered_data.append(item)
+                    payable_data = filtered_data
+                
+                financial_results["payable"] = {
+                    "success": True,
+                    "data": payable_data,
+                    "count": len(payable_data),
+                    "error": None
+                }
+            else:
+                financial_results["payable"]["error"] = payable_result.get("error")
+                
+        except Exception as e:
+            financial_results["payable"]["error"] = str(e)
+    
+    # Compilar resultado final
+    total_records = financial_results["receivable"]["count"] + financial_results["payable"]["count"]
+    has_errors = bool(financial_results["receivable"]["error"] or financial_results["payable"]["error"])
+    
+    summary = {
+        "period": f"{period_start} a {period_end}",
+        "search_type": search_type,
+        "total_records": total_records,
+        "receivable_count": financial_results["receivable"]["count"],
+        "payable_count": financial_results["payable"]["count"],
+        "filters_applied": {
+            "amount_range": f"{amount_min or 'sem mín'} - {amount_max or 'sem máx'}",
+            "customer_creditor": customer_creditor_search or "todos"
+        }
+    }
+    
+    if total_records > 0:
+        return {
+            "success": True,
+            "message": f"✅ Busca financeira encontrou {total_records} registros no período",
+            "summary": summary,
+            "receivable": financial_results["receivable"],
+            "payable": financial_results["payable"],
+            "has_errors": has_errors
+        }
+    else:
+        return {
+            "success": False,
+            "message": f"❌ Nenhum registro financeiro encontrado no período {period_start} a {period_end}",
+            "summary": summary,
+            "errors": {
+                "receivable": financial_results["receivable"]["error"],
+                "payable": financial_results["payable"]["error"]
+            }
+        }
+
+
+@mcp.tool
+async def get_sienge_dashboard_summary() -> Dict:
+    """
+    Obtém um resumo tipo dashboard com informações gerais do Sienge
+    Útil para visão geral rápida do sistema
+    """
+    
+    # Data atual e períodos
+    today = datetime.now()
+    current_month_start = today.replace(day=1).strftime("%Y-%m-%d")
+    current_month_end = today.strftime("%Y-%m-%d")
+    
+    dashboard_data = {}
+    errors = []
+    
+    # 1. Testar conexão
+    try:
+        connection_test = await test_sienge_connection()
+        dashboard_data["connection"] = connection_test
+    except Exception as e:
+        errors.append(f"Teste de conexão: {str(e)}")
+        dashboard_data["connection"] = {"success": False, "error": str(e)}
+    
+    # 2. Contar clientes (amostra)
+    try:
+        customers_result = await get_sienge_customers(limit=1)
+        if customers_result["success"]:
+            dashboard_data["customers_available"] = True
+        else:
+            dashboard_data["customers_available"] = False
+    except Exception as e:
+        errors.append(f"Clientes: {str(e)}")
+        dashboard_data["customers_available"] = False
+    
+    # 3. Contar projetos (amostra)
+    try:
+        projects_result = await get_sienge_projects(limit=5)
+        if projects_result["success"]:
+            dashboard_data["projects"] = {
+                "available": True,
+                "sample_count": len(projects_result["enterprises"]),
+                "total_count": projects_result.get("metadata", {}).get("count", "N/A")
+            }
+        else:
+            dashboard_data["projects"] = {"available": False}
+    except Exception as e:
+        errors.append(f"Projetos: {str(e)}")
+        dashboard_data["projects"] = {"available": False, "error": str(e)}
+    
+    # 4. Títulos a pagar do mês atual
+    try:
+        bills_result = await get_sienge_bills(
+            start_date=current_month_start,
+            end_date=current_month_end,
+            limit=10
+        )
+        if bills_result["success"]:
+            dashboard_data["monthly_bills"] = {
+                "available": True,
+                "count": len(bills_result["bills"]),
+                "total_count": bills_result.get("total_count", len(bills_result["bills"]))
+            }
+        else:
+            dashboard_data["monthly_bills"] = {"available": False}
+    except Exception as e:
+        errors.append(f"Títulos mensais: {str(e)}")
+        dashboard_data["monthly_bills"] = {"available": False, "error": str(e)}
+    
+    # 5. Tipos de clientes
+    try:
+        customer_types_result = await get_sienge_customer_types()
+        if customer_types_result["success"]:
+            dashboard_data["customer_types"] = {
+                "available": True,
+                "count": len(customer_types_result["customer_types"])
+            }
+        else:
+            dashboard_data["customer_types"] = {"available": False}
+    except Exception as e:
+        dashboard_data["customer_types"] = {"available": False, "error": str(e)}
+    
+    # Compilar resultado
+    available_modules = sum(1 for key, value in dashboard_data.items() 
+                          if key != "connection" and isinstance(value, dict) and value.get("available"))
+    
+    return {
+        "success": True,
+        "message": f"✅ Dashboard do Sienge - {available_modules} módulos disponíveis",
+        "timestamp": today.isoformat(),
+        "period_analyzed": f"{current_month_start} a {current_month_end}",
+        "modules_status": dashboard_data,
+        "available_modules": available_modules,
+        "errors": errors if errors else None,
+        "quick_actions": [
+            "search_sienge_data('termo_busca') - Busca universal",
+            "list_sienge_entities() - Listar tipos de dados", 
+            "get_sienge_customers(search='nome') - Buscar clientes",
+            "get_sienge_projects() - Listar projetos/obras",
+            "search_sienge_financial_data('2024-01-01', '2024-12-31') - Dados financeiros"
+        ]
     }
 
 
