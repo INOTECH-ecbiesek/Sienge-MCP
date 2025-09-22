@@ -198,7 +198,7 @@ async def make_sienge_bulk_request(
 
 
 @mcp.tool
-async def test_sienge_connection() -> Dict:
+async def test_sienge_connection(_meta: Optional[Dict[str, Any]] = None) -> Dict:
     """Testa a conexão com a API do Sienge e retorna métricas básicas"""
     try:
         # Tentar endpoint mais simples primeiro
