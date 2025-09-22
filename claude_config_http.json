@@ -7,7 +7,7 @@
         "tool",
         "run", 
         "mcp-client-sse",
-        "https://sienge-mcp-production.up.railway.app/mcp/sse"
+        "https://125d4375-ace5-4ca7-834e-6cfe62040e6b.up.railway.app/mcp"
       ]
     }
   }

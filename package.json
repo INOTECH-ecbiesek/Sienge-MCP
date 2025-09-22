@@ -1,0 +1,24 @@
+{
+  "name": "sienge-mcp",
+  "version": "1.0.0",
+  "description": "Um servidor Model Context Protocol (MCP) para integração com a API do Sienge, sistema de gestão para empresas de construção civil.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/INOTECH-ecbiesek/Sienge-MCP.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/INOTECH-ecbiesek/Sienge-MCP/issues"
+  },
+  "homepage": "https://github.com/INOTECH-ecbiesek/Sienge-MCP#readme",
+  "devDependencies": {
+    "@railway/cli": "^4.8.0",
+    "railway": "^2.0.17"
+  }
+}
