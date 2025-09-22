@@ -10,6 +10,15 @@ from typing import Dict, List, Optional, Any
 import os
 from dotenv import load_dotenv
 from datetime import datetime
+import time
+import uuid
+
+# Optional: prefer tenacity for robust retries; linter will warn if not installed but code falls back
+try:
+    from tenacity import AsyncRetrying, wait_exponential, stop_after_attempt, retry_if_exception_type  # type: ignore
+    TENACITY_AVAILABLE = True
+except Exception:
+    TENACITY_AVAILABLE = False
 
 # Carrega as variáveis de ambiente
 load_dotenv()
@@ -38,47 +47,77 @@ async def make_sienge_request(
     Função auxiliar para fazer requisições à API do Sienge (v1)
     Suporta tanto Bearer Token quanto Basic Auth
     """
+    # Attach a request id and measure latency
+    request_id = str(uuid.uuid4())
+    start_ts = time.time()
+
+    headers = {"Content-Type": "application/json", "Accept": "application/json", "X-Request-Id": request_id}
+
+    # Configurar autenticação e URL
+    auth = None
+
+    if SIENGE_API_KEY and SIENGE_API_KEY != "sua_api_key_aqui":
+        headers["Authorization"] = f"Bearer {SIENGE_API_KEY}"
+        url = f"{SIENGE_BASE_URL}/{SIENGE_SUBDOMAIN}/public/api/v1{endpoint}"
+    elif SIENGE_USERNAME and SIENGE_PASSWORD:
+        auth = httpx.BasicAuth(SIENGE_USERNAME, SIENGE_PASSWORD)
+        url = f"{SIENGE_BASE_URL}/{SIENGE_SUBDOMAIN}/public/api/v1{endpoint}"
+    else:
+        return {
+            "success": False,
+            "error": "No Authentication",
+            "message": "Configure SIENGE_API_KEY ou SIENGE_USERNAME/PASSWORD no .env",
+            "request_id": request_id,
+        }
+
+    async def _do_request(client: httpx.AsyncClient):
+        return await client.request(method=method, url=url, headers=headers, params=params, json=json_data, auth=auth)
+
     try:
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            headers = {"Content-Type": "application/json", "Accept": "application/json"}
-
-            # Configurar autenticação e URL
-            auth = None
-
-            if SIENGE_API_KEY and SIENGE_API_KEY != "sua_api_key_aqui":
-                # Bearer Token (Recomendado)
-                headers["Authorization"] = f"Bearer {SIENGE_API_KEY}"
-                url = f"{SIENGE_BASE_URL}/{SIENGE_SUBDOMAIN}/public/api/v1{endpoint}"
-            elif SIENGE_USERNAME and SIENGE_PASSWORD:
-                # Basic Auth usando httpx.BasicAuth
-                auth = httpx.BasicAuth(SIENGE_USERNAME, SIENGE_PASSWORD)
-                url = f"{SIENGE_BASE_URL}/{SIENGE_SUBDOMAIN}/public/api/v1{endpoint}"
+            # Retry strategy: prefer tenacity if available
+            if TENACITY_AVAILABLE:
+                async for attempt in AsyncRetrying(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8), retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError))):
+                    with attempt:
+                        response = await _do_request(client)
             else:
-                return {
-                    "success": False,
-                    "error": "No Authentication",
-                    "message": "Configure SIENGE_API_KEY ou SIENGE_USERNAME/PASSWORD no .env",
-                }
+                # Simple manual retry with exponential backoff
+                attempts = 0
+                while True:
+                    try:
+                        response = await _do_request(client)
+                        break
+                    except (httpx.RequestError, httpx.TimeoutException) as exc:
+                        attempts += 1
+                        if attempts >= 3:
+                            raise
+                        await client.aclose()
+                        await httpx.AsyncClient().aclose()
+                        await __import__('asyncio').sleep(2 ** attempts)
 
-            response = await client.request(method=method, url=url, headers=headers, params=params, json=json_data, auth=auth)
+            latency_ms = int((time.time() - start_ts) * 1000)
 
             if response.status_code in [200, 201]:
                 try:
-                    return {"success": True, "data": response.json(), "status_code": response.status_code}
+                    return {"success": True, "data": response.json(), "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
                 except BaseException:
-                    return {"success": True, "data": {"message": "Success"}, "status_code": response.status_code}
+                    return {"success": True, "data": {"message": "Success"}, "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
             else:
                 return {
                     "success": False,
                     "error": f"HTTP {response.status_code}",
                     "message": response.text,
                     "status_code": response.status_code,
+                    "latency_ms": latency_ms,
+                    "request_id": request_id,
                 }
 
     except httpx.TimeoutException:
-        return {"success": False, "error": "Timeout", "message": f"A requisição excedeu o tempo limite de {REQUEST_TIMEOUT}s"}
+        latency_ms = int((time.time() - start_ts) * 1000)
+        return {"success": False, "error": "Timeout", "message": f"A requisição excedeu o tempo limite de {REQUEST_TIMEOUT}s", "latency_ms": latency_ms, "request_id": request_id}
     except Exception as e:
-        return {"success": False, "error": str(e), "message": f"Erro na requisição: {str(e)}"}
+        latency_ms = int((time.time() - start_ts) * 1000)
+        return {"success": False, "error": str(e), "message": f"Erro na requisição: {str(e)}", "latency_ms": latency_ms, "request_id": request_id}
 
 
 async def make_sienge_bulk_request(
@@ -88,47 +127,71 @@ async def make_sienge_bulk_request(
     Função auxiliar para fazer requisições à API bulk-data do Sienge
     Suporta tanto Bearer Token quanto Basic Auth
     """
+    # Similar to make_sienge_request but targeting bulk-data endpoints
+    request_id = str(uuid.uuid4())
+    start_ts = time.time()
+
+    headers = {"Content-Type": "application/json", "Accept": "application/json", "X-Request-Id": request_id}
+
+    auth = None
+    if SIENGE_API_KEY and SIENGE_API_KEY != "sua_api_key_aqui":
+        headers["Authorization"] = f"Bearer {SIENGE_API_KEY}"
+        url = f"{SIENGE_BASE_URL}/{SIENGE_SUBDOMAIN}/public/api/bulk-data/v1{endpoint}"
+    elif SIENGE_USERNAME and SIENGE_PASSWORD:
+        auth = httpx.BasicAuth(SIENGE_USERNAME, SIENGE_PASSWORD)
+        url = f"{SIENGE_BASE_URL}/{SIENGE_SUBDOMAIN}/public/api/bulk-data/v1{endpoint}"
+    else:
+        return {
+            "success": False,
+            "error": "No Authentication",
+            "message": "Configure SIENGE_API_KEY ou SIENGE_USERNAME/PASSWORD no .env",
+            "request_id": request_id,
+        }
+
+    async def _do_request(client: httpx.AsyncClient):
+        return await client.request(method=method, url=url, headers=headers, params=params, json=json_data, auth=auth)
+
     try:
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            headers = {"Content-Type": "application/json", "Accept": "application/json"}
-
-            # Configurar autenticação e URL para bulk-data
-            auth = None
-
-            if SIENGE_API_KEY and SIENGE_API_KEY != "sua_api_key_aqui":
-                # Bearer Token (Recomendado)
-                headers["Authorization"] = f"Bearer {SIENGE_API_KEY}"
-                url = f"{SIENGE_BASE_URL}/{SIENGE_SUBDOMAIN}/public/api/bulk-data/v1{endpoint}"
-            elif SIENGE_USERNAME and SIENGE_PASSWORD:
-                # Basic Auth usando httpx.BasicAuth
-                auth = httpx.BasicAuth(SIENGE_USERNAME, SIENGE_PASSWORD)
-                url = f"{SIENGE_BASE_URL}/{SIENGE_SUBDOMAIN}/public/api/bulk-data/v1{endpoint}"
+            if TENACITY_AVAILABLE:
+                async for attempt in AsyncRetrying(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8), retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError))):
+                    with attempt:
+                        response = await _do_request(client)
             else:
-                return {
-                    "success": False,
-                    "error": "No Authentication",
-                    "message": "Configure SIENGE_API_KEY ou SIENGE_USERNAME/PASSWORD no .env",
-                }
+                attempts = 0
+                while True:
+                    try:
+                        response = await _do_request(client)
+                        break
+                    except (httpx.RequestError, httpx.TimeoutException) as exc:
+                        attempts += 1
+                        if attempts >= 3:
+                            raise
+                        await __import__('asyncio').sleep(2 ** attempts)
 
-            response = await client.request(method=method, url=url, headers=headers, params=params, json=json_data, auth=auth)
+            latency_ms = int((time.time() - start_ts) * 1000)
 
             if response.status_code in [200, 201]:
                 try:
-                    return {"success": True, "data": response.json(), "status_code": response.status_code}
+                    return {"success": True, "data": response.json(), "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
                 except BaseException:
-                    return {"success": True, "data": {"message": "Success"}, "status_code": response.status_code}
+                    return {"success": True, "data": {"message": "Success"}, "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
             else:
                 return {
                     "success": False,
                     "error": f"HTTP {response.status_code}",
                     "message": response.text,
                     "status_code": response.status_code,
+                    "latency_ms": latency_ms,
+                    "request_id": request_id,
                 }
 
     except httpx.TimeoutException:
-        return {"success": False, "error": "Timeout", "message": f"A requisição excedeu o tempo limite de {REQUEST_TIMEOUT}s"}
+        latency_ms = int((time.time() - start_ts) * 1000)
+        return {"success": False, "error": "Timeout", "message": f"A requisição excedeu o tempo limite de {REQUEST_TIMEOUT}s", "latency_ms": latency_ms, "request_id": request_id}
     except Exception as e:
-        return {"success": False, "error": str(e), "message": f"Erro na requisição bulk-data: {str(e)}"}
+        latency_ms = int((time.time() - start_ts) * 1000)
+        return {"success": False, "error": str(e), "message": f"Erro na requisição bulk-data: {str(e)}", "latency_ms": latency_ms, "request_id": request_id}
 
 
 # ============ CONEXÃO E TESTE ============
@@ -136,7 +199,7 @@ async def make_sienge_bulk_request(
 
 @mcp.tool
 async def test_sienge_connection() -> Dict:
-    """Testa a conexão com a API do Sienge"""
+    """Testa a conexão com a API do Sienge e retorna métricas básicas"""
     try:
         # Tentar endpoint mais simples primeiro
         result = await make_sienge_request("GET", "/customer-types")
@@ -149,6 +212,8 @@ async def test_sienge_connection() -> Dict:
                 "api_status": "Online",
                 "auth_method": auth_method,
                 "timestamp": datetime.now().isoformat(),
+                "latency_ms": result.get("latency_ms"),
+                "request_id": result.get("request_id"),
             }
         else:
             return {
@@ -157,6 +222,8 @@ async def test_sienge_connection() -> Dict:
                 "error": result.get("error"),
                 "details": result.get("message"),
                 "timestamp": datetime.now().isoformat(),
+                "latency_ms": result.get("latency_ms"),
+                "request_id": result.get("request_id"),
             }
     except Exception as e:
         return {
@@ -190,6 +257,15 @@ async def get_sienge_customers(
     if customer_type_id:
         params["customer_type_id"] = customer_type_id
 
+    # Basic in-memory cache for lightweight GETs
+    cache_key = f"customers:{limit}:{offset}:{search}:{customer_type_id}"
+    try:
+        cached = _simple_cache_get(cache_key)
+        if cached:
+            return cached
+    except Exception:
+        pass
+
     result = await make_sienge_request("GET", "/customers", params=params)
 
     if result["success"]:
@@ -198,13 +274,18 @@ async def get_sienge_customers(
         metadata = data.get("resultSetMetadata", {}) if isinstance(data, dict) else {}
         total_count = metadata.get("count", len(customers))
 
-        return {
+        response = {
             "success": True,
             "message": f"✅ Encontrados {len(customers)} clientes (total: {total_count})",
             "customers": customers,
             "count": len(customers),
             "filters_applied": params,
         }
+        try:
+            _simple_cache_set(cache_key, response, ttl=30)
+        except Exception:
+            pass
+        return response
 
     return {
         "success": False,
@@ -225,12 +306,17 @@ async def get_sienge_customer_types() -> Dict:
         metadata = data.get("resultSetMetadata", {}) if isinstance(data, dict) else {}
         total_count = metadata.get("count", len(customer_types))
 
-        return {
+        response = {
             "success": True,
             "message": f"✅ Encontrados {len(customer_types)} tipos de clientes (total: {total_count})",
             "customer_types": customer_types,
             "count": len(customer_types),
         }
+        try:
+            _simple_cache_set("customer_types", response, ttl=300)
+        except Exception:
+            pass
+        return response
 
     return {
         "success": False,
@@ -257,6 +343,14 @@ async def get_sienge_creditors(limit: Optional[int] = 50, offset: Optional[int] 
     if search:
         params["search"] = search
 
+    cache_key = f"creditors:{limit}:{offset}:{search}"
+    try:
+        cached = _simple_cache_get(cache_key)
+        if cached:
+            return cached
+    except Exception:
+        pass
+
     result = await make_sienge_request("GET", "/creditors", params=params)
 
     if result["success"]:
@@ -265,12 +359,17 @@ async def get_sienge_creditors(limit: Optional[int] = 50, offset: Optional[int] 
         metadata = data.get("resultSetMetadata", {}) if isinstance(data, dict) else {}
         total_count = metadata.get("count", len(creditors))
 
-        return {
+        response = {
             "success": True,
             "message": f"✅ Encontrados {len(creditors)} credores (total: {total_count})",
             "creditors": creditors,
             "count": len(creditors),
         }
+        try:
+            _simple_cache_set(cache_key, response, ttl=30)
+        except Exception:
+            pass
+        return response
 
     return {
         "success": False,
@@ -1755,6 +1854,27 @@ def _get_auth_info_internal() -> Dict:
             "configured": False,
             "message": "Configure SIENGE_API_KEY ou SIENGE_USERNAME/PASSWORD no .env",
         }
+
+
+# ============ SIMPLE ASYNC CACHE (in-memory, process-local) ============
+# Lightweight helper to improve hit-rate on repeated test queries
+_SIMPLE_CACHE: Dict[str, Dict[str, Any]] = {}
+
+def _simple_cache_set(key: str, value: Dict[str, Any], ttl: int = 60) -> None:
+    expire_at = int(time.time()) + int(ttl)
+    _SIMPLE_CACHE[key] = {"value": value, "expire_at": expire_at}
+
+def _simple_cache_get(key: str) -> Optional[Dict[str, Any]]:
+    item = _SIMPLE_CACHE.get(key)
+    if not item:
+        return None
+    if int(time.time()) > item.get("expire_at", 0):
+        try:
+            del _SIMPLE_CACHE[key]
+        except KeyError:
+            pass
+        return None
+    return item.get("value")
 
 
 @mcp.tool
