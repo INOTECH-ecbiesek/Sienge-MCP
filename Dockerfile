@@ -26,6 +26,6 @@ EXPOSE $PORT
 RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Comando para iniciar o servidor
+# Comando para iniciar o servidor usando o FastAPI mount (HTTP streaming compatível)
 # O Railway define automaticamente a variável PORT
-CMD ["python", "simple_server.py"]
+CMD ["python", "app.py"]
