@@ -1,8 +1,18 @@
-# 🎉 SIENGE ECBIESEK MCP - PUBLICADO NO PYPI!
+# 🎉 SIENGE ECBIESEK MCP - VERSÃO 1.2.0 PUBLICADA!
 
-## ✅ **SUCESSO! PACKAGE PUBLICADO**
+## ✅ **NOVA VERSÃO MAJOR LANÇADA!**
 
-**URL PyPI**: https://pypi.org/project/sienge-ecbiesek-mcp/1.0.0/
+**URL PyPI**: https://pypi.org/project/sienge-ecbiesek-mcp/1.2.0/
+
+### 🚀 **NOVIDADES DA VERSÃO 1.2.0:**
+- ✅ **50+ tools** para gestão completa do Sienge
+- ✅ **Bulk data polling** para grandes volumes
+- ✅ **Cache inteligente** para performance
+- ✅ **Normalização automática** de payloads
+- ✅ **Observabilidade completa** com logs e métricas
+- ✅ **Aliases de compatibilidade** para todas as funções
+- ✅ **Mascaramento de dados** sensíveis
+- ✅ **Paginação avançada** com metadados corretos
 
 ---
 

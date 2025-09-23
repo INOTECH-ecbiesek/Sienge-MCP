@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sienge-ecbiesek-mcp"
-version = "1.1.5"
-description = "🏗️ Model Context Protocol (MCP) server for Sienge API integration - Brazilian construction ERP system. Connect Claude AI to Sienge with 9 powerful tools for accounts receivable, purchase invoices, and project management."
+version = "1.2.1"
+description = "🏗️ Model Context Protocol (MCP) server for Sienge API integration - Brazilian construction ERP system. Connect Claude AI to Sienge with 50+ powerful tools for comprehensive business management including financials, projects, and operations."
 authors = [
     {name = "ECBIESEK", email = "ti@ecbiesek.com"}
 ]
 readme = {file = "README.md", content-type = "text/markdown"}
-license = {file = "LICENSE"}
+license = {text = "MIT"}
 requires-python = ">=3.10"
 keywords = [
     "sienge", 
