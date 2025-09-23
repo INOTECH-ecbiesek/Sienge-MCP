@@ -15,7 +15,8 @@ import uuid
 import asyncio
 
 # logger
-from .utils.logger import logger
+from .utils.logger import get_logger
+logger = get_logger("SiengeMCP")
 
 # Optional: prefer tenacity for robust retries; linter will warn if not installed but code falls back
 try:
