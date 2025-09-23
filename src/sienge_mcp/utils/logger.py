@@ -107,6 +107,10 @@ class SiengeLogger:
         log_message = message + (self._format_data(data) if data else "")
         self.logger.warning(log_message)
 
+    def warning(self, message: str, data: Optional[Dict[str, Any]] = None):
+        """Alias for warn to match standard logging API"""
+        self.warn(message, data)
+
     def error(self, message: str, data: Optional[Dict[str, Any]] = None):
         """Log error level message"""
         log_message = message + (self._format_data(data) if data else "")
@@ -161,6 +165,11 @@ def info(message: str, data: Optional[Dict[str, Any]] = None):
 def warn(message: str, data: Optional[Dict[str, Any]] = None):
     """Log warning level message using default logger"""
     get_logger().warn(message, data)
+
+
+def warning(message: str, data: Optional[Dict[str, Any]] = None):
+    """Alias for warning level using default logger"""
+    get_logger().warning(message, data)
 
 
 def error(message: str, data: Optional[Dict[str, Any]] = None):
