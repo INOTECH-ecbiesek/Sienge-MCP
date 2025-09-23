@@ -274,6 +274,13 @@ async def get_sienge_customers(
         search: Buscar por nome ou documento
         customer_type_id: Filtrar por tipo de cliente
     """
+    # Delegate to internal implementation to avoid calling decorated FunctionTool objects
+    return await _get_sienge_customers_impl(limit=limit, offset=offset, search=search, customer_type_id=customer_type_id)
+
+
+async def _get_sienge_customers_impl(
+    limit: Optional[int] = 50, offset: Optional[int] = 0, search: Optional[str] = None, customer_type_id: Optional[str] = None
+) -> Dict:
     params = {"limit": min(limit or 50, 200), "offset": offset or 0}
 
     if search:
@@ -363,6 +370,10 @@ async def get_sienge_creditors(limit: Optional[int] = 50, offset: Optional[int] 
         offset: Pular registros (padrão: 0)
         search: Buscar por nome
     """
+    return await _get_sienge_creditors_impl(limit=limit, offset=offset, search=search)
+
+
+async def _get_sienge_creditors_impl(limit: Optional[int] = 50, offset: Optional[int] = 0, search: Optional[str] = None) -> Dict:
     params = {"limit": min(limit or 50, 200), "offset": offset or 0}
     if search:
         params["search"] = search
@@ -588,6 +599,35 @@ async def get_sienge_bills(
     if status:
         params["status"] = status
 
+    return await _get_sienge_bills_impl(start_date=start_date, end_date=end_date, creditor_id=creditor_id, status=status, limit=limit)
+
+
+async def _get_sienge_bills_impl(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    creditor_id: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: Optional[int] = 50,
+) -> Dict:
+    from datetime import datetime, timedelta
+
+    # Se start_date não fornecido, usar últimos 30 dias
+    if not start_date:
+        start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    # Se end_date não fornecido, usar hoje
+    if not end_date:
+        end_date = datetime.now().strftime("%Y-%m-%d")
+
+    # Parâmetros obrigatórios
+    params = {"startDate": start_date, "endDate": end_date, "limit": min(limit or 50, 200)}  # OBRIGATÓRIO pela API
+
+    # Parâmetros opcionais
+    if creditor_id:
+        params["creditor_id"] = creditor_id
+    if status:
+        params["status"] = status
+
     result = await make_sienge_request("GET", "/bills", params=params)
 
     if result["success"]:
@@ -633,6 +673,15 @@ async def get_sienge_purchase_orders(
         date_from: Data inicial (YYYY-MM-DD)
         limit: Máximo de registros
     """
+    return await _get_sienge_purchase_orders_impl(purchase_order_id=purchase_order_id, status=status, date_from=date_from, limit=limit)
+
+
+async def _get_sienge_purchase_orders_impl(
+    purchase_order_id: Optional[str] = None,
+    status: Optional[str] = None,
+    date_from: Optional[str] = None,
+    limit: Optional[int] = 50,
+) -> Dict:
     if purchase_order_id:
         result = await make_sienge_request("GET", f"/purchase-orders/{purchase_order_id}")
         if result["success"]:
@@ -1082,6 +1131,28 @@ async def get_sienge_projects(
         receivable_register: Filtro de registro de recebíveis (B3, CERC)
         only_buildings_enabled: Retornar apenas obras habilitadas para integração orçamentária
     """
+    params = {"limit": min(limit or 100, 200), "offset": offset or 0}
+
+    if company_id:
+        params["companyId"] = company_id
+    if enterprise_type:
+        params["type"] = enterprise_type
+    if receivable_register:
+        params["receivableRegister"] = receivable_register
+    if only_buildings_enabled:
+        params["onlyBuildingsEnabledForIntegration"] = only_buildings_enabled
+
+    return await _get_sienge_projects_impl(limit=limit, offset=offset, company_id=company_id, enterprise_type=enterprise_type, receivable_register=receivable_register, only_buildings_enabled=only_buildings_enabled)
+
+
+async def _get_sienge_projects_impl(
+    limit: Optional[int] = 100,
+    offset: Optional[int] = 0,
+    company_id: Optional[int] = None,
+    enterprise_type: Optional[int] = None,
+    receivable_register: Optional[str] = None,
+    only_buildings_enabled: Optional[bool] = False,
+) -> Dict:
     params = {"limit": min(limit or 100, 200), "offset": offset or 0}
 
     if company_id:
