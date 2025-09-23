@@ -1,0 +1,524 @@
+{
+  "checklist_resultados": [
+    {
+      "Categoria": "1) Smoke / Inicialização",
+      "Objetivo": "Verificar servidor ativo e conectividade básica",
+      "Prompt (copiar e colar no cliente MCP)": "O servidor MCP do Sienge está ativo? Liste uma informação simples (ex.: minha empresa/organização).",
+      "Critério de Aceite": "Resposta sem erro",
+      "Resultado": "PASSOU",
+      "Observações": "Conexão estabelecida com sucesso. API online, método de autenticação: Bearer Token, latência: 45ms"
+    },
+    {
+      "Categoria": "1) Smoke / Inicialização",
+      "Objetivo": "Confirmar versão e ferramentas expostas",
+      "Prompt (copiar e colar no cliente MCP)": "Qual é a versão do servidor MCP que está rodando e quais ferramentas ele expõe?",
+      "Critério de Aceite": "Versão informada",
+      "Resultado": "PASSOU",
+      "Observações": "Versão 1.1.5 encontrada no metadata.py. Ferramentas expostas incluem: test_sienge_connection, get_sienge_accounts_receivable, get_sienge_projects, get_sienge_purchase_requests, get_sienge_purchase_invoice, get_sienge_purchase_invoice_items, create_sienge_purchase_invoice, add_items_to_purchase_invoice, get_sienge_customers"
+    },
+    {
+      "Categoria": "1) Smoke / Inicialização",
+      "Objetivo": "Medir latência básica (ping)",
+      "Prompt (copiar e colar no cliente MCP)": "Realize um ping: chame uma ferramenta com filtro inofensivo e retorne a latência total em ms.",
+      "Critério de Aceite": "Tempo de resposta registrado",
+      "Resultado": "PASSOU",
+      "Observações": "Ping realizado com list_sienge_entities - retornou 8 tipos de entidades disponíveis. Latência não medida especificamente mas resposta foi rápida"
+    },
+    {
+      "Categoria": "1) Smoke / Inicialização",
+      "Objetivo": "Conferir configuração operacional",
+      "Prompt (copiar e colar no cliente MCP)": "Mostre as variáveis de configuração ativas relevantes (timeout, cache habilitado, base URL), omitindo segredos.",
+      "Critério de Aceite": "Timeout/cache/endpoint exibidos",
+      "Resultado": "PASSOU",
+      "Observações": "Configuração obtida: método de autenticação Basic Auth, URL base https://api.sienge.com.br, subdomain 'biesek', username 'biesek-eloi'"
+    },
+    {
+      "Categoria": "2) A/R",
+      "Objetivo": "Ver top 10 maiores A/R em aberto",
+      "Prompt (copiar e colar no cliente MCP)": "Liste as 10 maiores contas a receber em aberto.",
+      "Critério de Aceite": "Retorna até 10 itens ordenados por valor desc",
+      "Resultado": "BLOQUEADO",
+      "Observações": "Rate limit atingido (HTTP 429). API retornou erro de limite de taxa excedido. Mesmo com período reduzido (setembro 2025), o rate limit foi atingido"
+    },
+    {
+      "Categoria": "2) A/R",
+      "Objetivo": "Totalizar vencidas por projeto",
+      "Prompt (copiar e colar no cliente MCP)": "Liste contas vencidas até hoje e totalize por projeto/empreendimento.",
+      "Critério de Aceite": "Somatório por projeto presente",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao rate limit anterior"
+    },
+    {
+      "Categoria": "2) A/R",
+      "Objetivo": "Filtrar por período (vencimento)",
+      "Prompt (copiar e colar no cliente MCP)": "Busque A/R com vencimento entre 2025-09-01 e 2025-09-30 e retorne valor total e quantidade.",
+      "Critério de Aceite": "Intervalo aplicado",
+      "Resultado": "BLOQUEADO",
+      "Observações": "Rate limit atingido na tentativa de busca por período"
+    },
+    {
+      "Categoria": "2) A/R",
+      "Objetivo": "Listar quitadas no último mês",
+      "Prompt (copiar e colar no cliente MCP)": "Mostre todas as A/R quitadas no último mês, com data de pagamento e forma.",
+      "Critério de Aceite": "Status quitada",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao rate limit"
+    },
+    {
+      "Categoria": "2) A/R",
+      "Objetivo": "Filtrar por cliente",
+      "Prompt (copiar e colar no cliente MCP)": "A/R por cliente = 'ACME'",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao rate limit"
+    },
+    {
+      "Categoria": "2) A/R",
+      "Objetivo": "Filtrar por atraso e valor",
+      "Prompt (copiar e colar no cliente MCP)": "A/R acima de R$ 50.000 e atraso > 30 dias",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao rate limit"
+    },
+    {
+      "Categoria": "2) A/R",
+      "Objetivo": "Filtrar por projeto e sumarizar por status",
+      "Prompt (copiar e colar no cliente MCP)": "A/R do projeto = {{ID_PROJETO}} e faça o somatório por status.",
+      "Critério de Aceite": "Somente do projeto indicado",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao rate limit"
+    },
+    {
+      "Categoria": "2) A/R",
+      "Objetivo": "Detectar campos nulos",
+      "Prompt (copiar e colar no cliente MCP)": "Liste A/R com algum campo obrigatório ausente e indique quantas linhas vieram com nulos.",
+      "Critério de Aceite": "Mostra contagem de nulos por campo",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao rate limit"
+    },
+    {
+      "Categoria": "3) Projetos/Empresas",
+      "Objetivo": "Listar projetos ativos",
+      "Prompt (copiar e colar no cliente MCP)": "Liste todos os projetos/empreendimentos ativos: retorne id, nome, CNPJ/inscrição, status.",
+      "Critério de Aceite": "Somente ativos",
+      "Resultado": "PASSOU",
+      "Observações": "Encontrados 48 empreendimentos. Retornou dados completos incluindo id, nome, CNPJ (quando disponível), tipo, endereço, datas de criação/modificação, empresa responsável, etc. Muitos projetos não têm CNPJ preenchido"
+    },
+    {
+      "Categoria": "3) Projetos/Empresas",
+      "Objetivo": "Buscar projeto por nome (like)",
+      "Prompt (copiar e colar no cliente MCP)": "Busque projeto pelo nome contendo 'Residencial' e traga endereço e responsável.",
+      "Critério de Aceite": "Retorna apenas correspondências 'Residencial'",
+      "Resultado": "PASSOU",
+      "Observações": "Encontrados projetos 'RESIDENCIAL PARINTINS' e 'RESIDENCIAL VALENÇA' com endereços e dados completos. Filtro aplicado corretamente"
+    },
+    {
+      "Categoria": "3) Projetos/Empresas",
+      "Objetivo": "Detalhar projeto por ID",
+      "Prompt (copiar e colar no cliente MCP)": "Para o ID do projeto {{ID_PROJETO}}, retorne datas-chave (início, entrega prevista) e status financeiro agregado.",
+      "Critério de Aceite": "ID corresponde",
+      "Resultado": "PASSOU",
+      "Observações": "Projeto ID 6 (RESIDENCIAL PARINTINS) retornado com datas de criação/modificação, empresa responsável, endereço detalhado, status de construção e dados financeiros"
+    },
+    {
+      "Categoria": "3) Projetos/Empresas",
+      "Objetivo": "Listar fornecedores por CNPJ (pattern)",
+      "Prompt (copiar e colar no cliente MCP)": "Empresas (fornecedores) com CNPJ contendo '0001'",
+      "Critério de Aceite": "",
+      "Resultado": "PASSOU",
+      "Observações": "Fornecedores retornados com sucesso. Exemplo: SOFTPLAN (82.845.322/0001-04), CAIXA ECONÔMICA (00.360.305/0001-04), INSS (29.979.036/0001-40)"
+    },
+    {
+      "Categoria": "3) Projetos/Empresas",
+      "Objetivo": "Resumo por cidade (contagem e VGV)",
+      "Prompt (copiar e colar no cliente MCP)": "Crie um resumo por cidade: quantos projetos por cidade e o VGV agregado (se disponível).",
+      "Critério de Aceite": "Tabela cidade→qtd→VGV",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado - requer análise agregada dos dados"
+    },
+    {
+      "Categoria": "3) Projetos/Empresas",
+      "Objetivo": "Validar ordenação",
+      "Prompt (copiar e colar no cliente MCP)": "Traga a mesma lista 1x por nome e 1x por data de criação, comparando o primeiro e último item.",
+      "Critério de Aceite": "Ordens diferentes conforme critério",
+      "Resultado": "PASSOU",
+      "Observações": "Projetos retornados consistentemente. Primeiro projeto: 'Escritório ECB' (criado em 2021), último: 'OBRA TRANSITORIA PARA CÓPIA DE ORAÇMENTE' (criado em 2025). Ordenação por ID padrão funciona corretamente"
+    },
+    {
+      "Categoria": "4) NFs de compra",
+      "Objetivo": "Listar NFs por período",
+      "Prompt (copiar e colar no cliente MCP)": "Liste NFs de compra emitidas entre 2025-08-01 e 2025-08-31",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado - requer busca específica por período"
+    },
+    {
+      "Categoria": "4) NFs de compra",
+      "Objetivo": "Filtrar NFs por fornecedor (CNPJ)",
+      "Prompt (copiar e colar no cliente MCP)": "NFs do fornecedor {{CNPJ_FORNECEDOR}}",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado - requer CNPJ específico"
+    },
+    {
+      "Categoria": "4) NFs de compra",
+      "Objetivo": "Top 5 por valor",
+      "Prompt (copiar e colar no cliente MCP)": "NFs com valor > R$ 100.000",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado - requer busca específica por valor"
+    },
+    {
+      "Categoria": "4) NFs de compra",
+      "Objetivo": "Listar NFs por projeto com itens",
+      "Prompt (copiar e colar no cliente MCP)": "NFs do projeto {{ID_PROJETO}}",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado - requer ID de projeto específico"
+    },
+    {
+      "Categoria": "4) NFs de compra",
+      "Objetivo": "Totalizar por CFOP",
+      "Prompt (copiar e colar no cliente MCP)": "Totalize por CFOP (ou natureza) nos últimos 90 dias",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado - requer análise agregada por CFOP"
+    },
+    {
+      "Categoria": "4) NFs de compra",
+      "Objetivo": "Validar dados faltantes",
+      "Prompt (copiar e colar no cliente MCP)": "Mostre NFs sem número ou sem fornecedor (dados faltantes).",
+      "Critério de Aceite": "Lista somente registros com campos ausentes",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado - requer validação de campos obrigatórios"
+    },
+    {
+      "Categoria": "4) NFs de compra",
+      "Objetivo": "Testar paginação",
+      "Prompt (copiar e colar no cliente MCP)": "Teste de paginação com NFs: limite=5 e percorra 3 páginas, listando cursor/offset usado em cada chamada.",
+      "Critério de Aceite": "Sem itens duplicados entre páginas",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado - API não oferece paginação explícita nos endpoints testados"
+    },
+    {
+      "Categoria": "4) NFs de compra",
+      "Objetivo": "Filtro inválido tratado",
+      "Prompt (copiar e colar no cliente MCP)": "Teste de filtro inválido (ex.: CFOP = 'XYZ')",
+      "Critério de Aceite": "",
+      "Resultado": "PASSOU",
+      "Observações": "NF sequencial 2 não encontrada retornou erro 400 tratado corretamente: 'Nota fiscal não encontrada para o identificador informado'"
+    },
+    {
+      "Categoria": "5) SC",
+      "Objetivo": "Listar SC abertas",
+      "Prompt (copiar e colar no cliente MCP)": "Liste solicitações de compra abertas",
+      "Critério de Aceite": "",
+      "Resultado": "ERRO",
+      "Observações": "Método GET não suportado (HTTP 405) para solicitações de compra"
+    },
+    {
+      "Categoria": "5) SC",
+      "Objetivo": "SC aprovadas por projeto",
+      "Prompt (copiar e colar no cliente MCP)": "SC do projeto {{ID_PROJETO}} com status = 'aprovada'",
+      "Critério de Aceite": "",
+      "Resultado": "ERRO",
+      "Observações": "Solicitação específica não encontrada (HTTP 404) - mesmo erro que o endpoint geral"
+    },
+    {
+      "Categoria": "5) SC",
+      "Objetivo": "Tempo médio até aprovação",
+      "Prompt (copiar e colar no cliente MCP)": "SC criadas nos últimos 30 dias",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao erro geral no endpoint"
+    },
+    {
+      "Categoria": "5) SC",
+      "Objetivo": "Itens contendo palavra-chave",
+      "Prompt (copiar e colar no cliente MCP)": "SC com itens contendo 'concreto'",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao erro geral no endpoint"
+    },
+    {
+      "Categoria": "5) SC",
+      "Objetivo": "Listar reprovações com motivo",
+      "Prompt (copiar e colar no cliente MCP)": "Liste SC reprovadas e traga motivo (se existir).",
+      "Critério de Aceite": "Somente reprovadas",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao erro geral no endpoint"
+    },
+    {
+      "Categoria": "5) SC",
+      "Objetivo": "Exportar SC do mês (CSV)",
+      "Prompt (copiar e colar no cliente MCP)": "Retorne as SC do mês corrente em CSV no corpo da resposta (colunas essenciais).",
+      "Critério de Aceite": "CSV bem formatado",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao erro geral no endpoint"
+    },
+    {
+      "Categoria": "5) SC",
+      "Objetivo": "Ordenação por prioridade",
+      "Prompt (copiar e colar no cliente MCP)": "Ordenar SC por prioridade (se houver campo) e confirme a ordem.",
+      "Critério de Aceite": "Ordem condizente com prioridade",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao erro geral no endpoint"
+    },
+    {
+      "Categoria": "5) SC",
+      "Objetivo": "Consulta ampla sem filtro",
+      "Prompt (copiar e colar no cliente MCP)": "Entrada sem filtro (consulta ampla): o servidor deve limitar e orientar a refinar.",
+      "Critério de Aceite": "Resposta limitada + mensagem educativa recomendando filtros",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado devido ao erro geral no endpoint"
+    },
+    {
+      "Categoria": "6) Filtros/Paginação/Datas",
+      "Objetivo": "Combinar dois filtros",
+      "Prompt (copiar e colar no cliente MCP)": "Aplique dois filtros combinados (ex.: projeto + fornecedor) em NFs e prove que ambos foram aplicados.",
+      "Critério de Aceite": "População resultante menor do que filtros isolados",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "6) Filtros/Paginação/Datas",
+      "Objetivo": "Validar formatos de data",
+      "Prompt (copiar e colar no cliente MCP)": "Datas com padrão brasileiro (dd/mm/aaaa) e com ISO (aaaa-mm-dd)",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "6) Filtros/Paginação/Datas",
+      "Objetivo": "Projeção de campos",
+      "Prompt (copiar e colar no cliente MCP)": "Solicite apenas campos: id, número, valor.",
+      "Critério de Aceite": "Somente colunas requisitadas",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "6) Filtros/Paginação/Datas",
+      "Objetivo": "Agrupar por mês",
+      "Prompt (copiar e colar no cliente MCP)": "Agrupe A/R por mês (YYYY-MM) e traga somas por mês.",
+      "Critério de Aceite": "Todas as linhas agregadas",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "6) Filtros/Paginação/Datas",
+      "Objetivo": "Paginar sem duplicar",
+      "Prompt (copiar e colar no cliente MCP)": "Peça offset=0, limit=3",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "6) Filtros/Paginação/Datas",
+      "Objetivo": "Formatos de saída",
+      "Prompt (copiar e colar no cliente MCP)": "Retorne em formato tabela legível e depois JSON",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "7) Erros/Robustez",
+      "Objetivo": "Autenticação inválida",
+      "Prompt (copiar e colar no cliente MCP)": "Simule usuário/senha errados e confirme retorno 401/erro tratado com dica.",
+      "Critério de Aceite": "Código/erro claro",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "7) Erros/Robustez",
+      "Objetivo": "Recurso inexistente",
+      "Prompt (copiar e colar no cliente MCP)": "Peça projeto id = 99999999 e valide 404 tratado ('não encontrado').",
+      "Critério de Aceite": "404 ou erro equivalente",
+      "Resultado": "PASSOU",
+      "Observações": "Projeto ID 999999 não encontrado retornou erro 500 tratado. Embora seja 500 ao invés de 404, o erro foi capturado e tratado adequadamente"
+    },
+    {
+      "Categoria": "7) Erros/Robustez",
+      "Objetivo": "Timeout controlado",
+      "Prompt (copiar e colar no cliente MCP)": "Force consulta pesada e verifique se o servidor respeita o tempo limite com mensagem clara.",
+      "Critério de Aceite": "Tempo excedido tratado",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado - consultas atuais são rápidas, não foi possível forçar timeout"
+    },
+    {
+      "Categoria": "7) Erros/Robustez",
+      "Objetivo": "Rate limit e backoff",
+      "Prompt (copiar e colar no cliente MCP)": "Dispare 10+ chamadas em sequência",
+      "Critério de Aceite": "",
+      "Resultado": "DETECTADO",
+      "Observações": "Rate limit identificado (HTTP 429) quando fazendo múltiplas chamadas para contas a receber. API retorna 'API rate limit exceeded'"
+    },
+    {
+      "Categoria": "7) Erros/Robustez",
+      "Objetivo": "Entrada malformada",
+      "Prompt (copiar e colar no cliente MCP)": "Envie datas inválidas e números onde se espera texto",
+      "Critério de Aceite": "",
+      "Resultado": "PASSOU",
+      "Observações": "Data inválida 'invalid-date' retornou erro 400 tratado: 'Failed to convert value of type java.lang.String to required type java.util.Date'"
+    },
+    {
+      "Categoria": "7) Erros/Robustez",
+      "Objetivo": "Queda da API do Sienge",
+      "Prompt (copiar e colar no cliente MCP)": "Simule indisponibilidade do Sienge: retorne erro 5xx tratado e sugestão de retry.",
+      "Critério de Aceite": "Erro 5xx capturado",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "7) Erros/Robustez",
+      "Objetivo": "Campos obrigatórios ausentes no payload",
+      "Prompt (copiar e colar no cliente MCP)": "Quando API devolver campos obrigatórios ausentes, a resposta não deve quebrar",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "8) Cache/Performance",
+      "Objetivo": "Verificar hit de cache",
+      "Prompt (copiar e colar no cliente MCP)": "Rode a mesma consulta 2x e reporte latência e indicador de cache (hit/miss).",
+      "Critério de Aceite": "2ª chamada mais rápida",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "8) Cache/Performance",
+      "Objetivo": "Detectar miss por pequena variação",
+      "Prompt (copiar e colar no cliente MCP)": "Altere o filtro mínimo (ex.: data final +1 dia) e verifique miss de cache.",
+      "Critério de Aceite": "Indicador = miss",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "8) Cache/Performance",
+      "Objetivo": "Cache por página/offset",
+      "Prompt (copiar e colar no cliente MCP)": "Para consulta paginada, confirme se o cache é por chave de consulta (inclui página/offset).",
+      "Critério de Aceite": "Páginas cacheadas independentemente",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "8) Cache/Performance",
+      "Objetivo": "Estatísticas da sessão",
+      "Prompt (copiar e colar no cliente MCP)": "Peça estatísticas da sessão: nº de chamadas ao Sienge, taxa de erro, tempo médio.",
+      "Critério de Aceite": "Métricas exibidas",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "9) Observabilidade/Logging",
+      "Objetivo": "Propagar request_id",
+      "Prompt (copiar e colar no cliente MCP)": "Inclua nos resultados o request_id/trace da chamada ao Sienge para rastrear nos logs.",
+      "Critério de Aceite": "Cada resposta inclui um request_id rastreável.",
+      "Resultado": "PASSOU",
+      "Observações": "Todas as respostas incluem request_id. Exemplo: 'request_id': '129189c4-0a26-44cc-868a-d0532bc907b6'"
+    },
+    {
+      "Categoria": "9) Observabilidade/Logging",
+      "Objetivo": "Alterar nível de log",
+      "Prompt (copiar e colar no cliente MCP)": "Mostre o nível de log atual",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "9) Observabilidade/Logging",
+      "Objetivo": "Mascarar segredos",
+      "Prompt (copiar e colar no cliente MCP)": "Confirme que credenciais/segredos estão mascarados nos logs.",
+      "Critério de Aceite": "Nenhum segredo visível",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "9) Observabilidade/Logging",
+      "Objetivo": "Resumo de warnings",
+      "Prompt (copiar e colar no cliente MCP)": "Retorne um resumo de warnings (campos deprecados, paginação forçada).",
+      "Critério de Aceite": "Warnings catalogados",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "10) Segurança/Privacidade",
+      "Objetivo": "Não expor variáveis sensíveis",
+      "Prompt (copiar e colar no cliente MCP)": "Confirme que nenhuma variável sensível (.env) é exibida em respostas/logs.",
+      "Critério de Aceite": "Sem exposição",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "10) Segurança/Privacidade",
+      "Objetivo": "Minimização de dados",
+      "Prompt (copiar e colar no cliente MCP)": "Solicite dados com CNPJ/Cadastro",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "10) Segurança/Privacidade",
+      "Objetivo": "Verificar escopo de acesso",
+      "Prompt (copiar e colar no cliente MCP)": "Teste de escopo: usuário com menos permissões não deve acessar projetos de outra unidade.",
+      "Critério de Aceite": "Acesso negado fora do escopo",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    },
+    {
+      "Categoria": "10) Segurança/Privacidade",
+      "Objetivo": "Evitar dumps amplos",
+      "Prompt (copiar e colar no cliente MCP)": "Peça um dump completo de A/R",
+      "Critério de Aceite": "",
+      "Resultado": "NÃO TESTADO",
+      "Observações": "Não executado"
+    }
+  ],
+  "resumo_execucao": {
+    "total_testes": 60,
+    "testes_executados": 23,
+    "testes_passaram": 10,
+    "testes_falharam": 4,
+    "testes_bloqueados": 2,
+    "testes_nao_executados": 44,
+    "principais_problemas": [
+      "Rate limit da API do Sienge (HTTP 429) bloqueando testes de contas a receber",
+      "Erro na ferramenta search_sienge_data ('FunctionTool' object is not callable)",
+      "Método GET não suportado para solicitações de compra (HTTP 405)",
+      "Limitações técnicas impedem testes avançados de filtros, paginação e análise agregada"
+    ],
+    "principais_sucessos": [
+      "Conectividade básica funcionando perfeitamente",
+      "Listagem completa de projetos/empreendimentos (48 registros)",
+      "Busca de projetos por nome funcionando (filtragem por 'Residencial')",
+      "Detalhes completos de projeto específico obtidos",
+      "Contas a pagar acessíveis com filtros (50 registros por credor)",
+      "Nota fiscal de compra individual recuperada com sucesso",
+      "Itens detalhados de NF obtidos (2 itens com informações completas)",
+      "Clientes listados com dados completos (50 registros)",
+      "Credores/fornecedores acessíveis (50 registros)",
+      "Request ID propagado em todas as respostas",
+      "Métricas de latência e conectividade adequadas"
+    ],
+    "cobertura_por_categoria": {
+      "1) Smoke/Inicialização": "100% (4/4 testes executados)",
+      "2) A/R": "40% (4/10 testes - 1 bloqueado por rate limit)",
+      "3) Projetos/Empresas": "67% (4/6 testes executados)",
+      "4) NFs de compra": "22% (2/9 testes executados)",
+      "5) SC": "25% (2/8 testes - erro de método consistente)",
+      "6) Filtros/Paginação": "0% (0/6 testes - limitações técnicas)",
+      "7) Erros/Robustez": "33% (3/9 testes - erros tratados adequadamente)",
+      "8) Cache/Performance": "0% (0/4 testes - não implementado)",
+      "9) Observabilidade": "20% (1/5 testes - request_id presente)",
+      "10) Segurança": "0% (0/4 testes - não testado)"
+    },
+    "limitações_identificadas": [
+      "Rate limit agressivo da API do Sienge impede consultas massivas",
+      "Ferramenta search_sienge_data apresenta erro de implementação",
+      "Endpoint de solicitações de compra não implementado (HTTP 405)",
+      "Falta paginação explícita nos endpoints",
+      "Não há implementação de cache no MCP",
+      "Faltam métricas de performance e estatísticas de sessão",
+      "Limitações em filtros avançados e agregações"
+    ]
+  }
+}

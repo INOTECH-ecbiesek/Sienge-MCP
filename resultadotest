@@ -1,0 +1,332 @@
+{
+  "resumo_executivo": {
+    "total_casos": 10,
+    "casos_sucesso": 8,
+    "casos_falha": 2,
+    "taxa_sucesso": "80%",
+    "data_teste": "2025-09-23"
+  },
+  "casos_de_uso": [
+    {
+      "id": 1,
+      "titulo": "Consulta Financeira - Contas a Receber em Atraso",
+      "cenario": "Final do mês, gerente financeiro precisa saber quais clientes estão em atraso",
+      "solicitante": "Gerente Financeiro",
+      "pedido": "Preciso de uma lista de todas as contas a receber vencidas até hoje, com nome do cliente, valor e dias de atraso",
+      "resultado": "N",
+      "status": "FALHOU",
+      "comandos_executados": [
+        {
+          "ferramenta": "search_sienge_financial_data",
+          "parametros": {
+            "period_start": "2024-01-01",
+            "period_end": "2025-09-22",
+            "search_type": "receivable"
+          },
+          "resultado": "Erro: 'FunctionTool' object is not callable"
+        },
+        {
+          "ferramenta": "get_sienge_accounts_receivable",
+          "parametros": {
+            "start_date": "2024-01-01",
+            "end_date": "2025-09-22"
+          },
+          "resultado": "Erro: HTTP 429 - API rate limit exceeded"
+        }
+      ],
+      "problemas": [
+        "API rate limit exceeded",
+        "Erro 'FunctionTool' object is not callable",
+        "Não foi possível obter dados financeiros"
+      ],
+      "instrucoes_replicacao": null
+    },
+    {
+      "id": 2,
+      "titulo": "Consulta de Clientes Ativos",
+      "cenario": "Equipe comercial precisa listar clientes para campanha de marketing",
+      "solicitante": "Gerente Comercial",
+      "pedido": "Preciso de uma lista dos nossos clientes ativos com contatos para enviar uma campanha promocional",
+      "resultado": "S",
+      "status": "SUCESSO",
+      "comandos_executados": [
+        {
+          "ferramenta": "get_sienge_customers",
+          "parametros": {
+            "limit": 10
+          },
+          "resultado": "✅ Encontrados 10 clientes (total: 410)"
+        }
+      ],
+      "dados_obtidos": {
+        "total_clientes": 410,
+        "clientes_retornados": 10,
+        "campos_incluidos": ["nome", "CPF", "telefone", "email", "endereço"]
+      },
+      "instrucoes_replicacao": {
+        "comando": "manus-mcp-cli tool call get_sienge_customers --server mcp-sienge --input '{\"limit\": 50}'",
+        "parametros": {
+          "limit": "Número máximo de registros (ajustável conforme necessidade)"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "titulo": "Consulta de Projetos/Empreendimentos",
+      "cenario": "Reunião de diretoria, precisa apresentar status dos projetos",
+      "solicitante": "Diretor de Operações",
+      "pedido": "Quero ver todos os nossos empreendimentos ativos e suas informações básicas",
+      "resultado": "S",
+      "status": "SUCESSO",
+      "comandos_executados": [
+        {
+          "ferramenta": "get_sienge_projects",
+          "parametros": {
+            "limit": 5
+          },
+          "resultado": "✅ Encontrados 5 empreendimentos"
+        }
+      ],
+      "dados_obtidos": {
+        "total_empreendimentos": 48,
+        "empreendimentos_retornados": 5,
+        "campos_incluidos": ["nome", "tipo", "endereço", "empresa responsável", "datas"]
+      },
+      "instrucoes_replicacao": {
+        "comando": "manus-mcp-cli tool call get_sienge_projects --server mcp-sienge --input '{\"limit\": 20}'",
+        "parametros": {
+          "limit": "Número máximo de registros",
+          "offset": "Para paginação (opcional)"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "titulo": "Busca de Cliente Específico",
+      "cenario": "Atendimento ao cliente precisa localizar um cliente específico",
+      "solicitante": "Atendente",
+      "pedido": "Preciso encontrar os dados do cliente Pedro Paulo para atualizar seu cadastro",
+      "resultado": "S",
+      "status": "SUCESSO",
+      "comandos_executados": [
+        {
+          "ferramenta": "search_sienge_data",
+          "parametros": {
+            "query": "PEDRO PAULO",
+            "entity_type": "customers",
+            "limit": 5
+          },
+          "resultado": "Erro: 'FunctionTool' object is not callable"
+        },
+        {
+          "ferramenta": "get_sienge_customers",
+          "parametros": {
+            "search": "PEDRO PAULO"
+          },
+          "resultado": "✅ Encontrados 50 clientes (total: 410)"
+        }
+      ],
+      "dados_obtidos": {
+        "cliente_encontrado": "PEDRO PAULO SOARES (ID: 437)",
+        "dados_completos": ["CPF", "telefones", "endereços", "email"],
+        "clientes_correspondentes": 50
+      },
+      "instrucoes_replicacao": {
+        "comando": "manus-mcp-cli tool call get_sienge_customers --server mcp-sienge --input '{\"search\": \"NOME_DO_CLIENTE\"}'",
+        "parametros": {
+          "search": "Nome ou parte do nome do cliente"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "titulo": "Detalhes de Projeto Específico",
+      "cenario": "Gerente de projeto precisa de informações detalhadas de uma obra",
+      "solicitante": "Gerente de Projeto",
+      "pedido": "Preciso de todos os detalhes do projeto 'Obra Parintins' para relatório de status",
+      "resultado": "S",
+      "status": "SUCESSO",
+      "comandos_executados": [
+        {
+          "ferramenta": "get_sienge_enterprise_by_id",
+          "parametros": {
+            "enterprise_id": 2
+          },
+          "resultado": "✅ Empreendimento 2 encontrado"
+        }
+      ],
+      "dados_obtidos": {
+        "projeto": "Obra Parintins",
+        "status": "FINISHED_WITHOUT_FINANCIAL_PENDENCIES",
+        "detalhes_incluidos": ["construção", "vendas", "responsável", "centros de custo"]
+      },
+      "instrucoes_replicacao": {
+        "comando": "manus-mcp-cli tool call get_sienge_enterprise_by_id --server mcp-sienge --input '{\"enterprise_id\": ID_DO_PROJETO}'",
+        "parametros": {
+          "enterprise_id": "ID numérico do empreendimento"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "titulo": "Consulta de Unidades Disponíveis",
+      "cenario": "Corretor precisa saber quais unidades estão disponíveis para venda",
+      "solicitante": "Corretor",
+      "pedido": "Quero ver as unidades disponíveis para mostrar aos clientes",
+      "resultado": "S",
+      "status": "SUCESSO",
+      "comandos_executados": [
+        {
+          "ferramenta": "get_sienge_units",
+          "parametros": {
+            "limit": 10
+          },
+          "resultado": "✅ Encontradas 10 unidades (total: 440)"
+        }
+      ],
+      "dados_obtidos": {
+        "total_unidades": 440,
+        "unidades_retornadas": 10,
+        "campos_incluidos": ["nome", "tipo", "status comercial", "áreas", "valores"]
+      },
+      "instrucoes_replicacao": {
+        "comando": "manus-mcp-cli tool call get_sienge_units --server mcp-sienge --input '{\"limit\": 50}'",
+        "parametros": {
+          "limit": "Número máximo de registros",
+          "offset": "Para paginação (opcional)"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "titulo": "Consulta de Fornecedores",
+      "cenario": "Departamento de compras precisa listar fornecedores ativos",
+      "solicitante": "Comprador",
+      "pedido": "Preciso da lista de fornecedores ativos para solicitar cotações",
+      "resultado": "S",
+      "status": "SUCESSO",
+      "comandos_executados": [
+        {
+          "ferramenta": "get_sienge_creditors",
+          "parametros": {
+            "limit": 5
+          },
+          "resultado": "✅ Encontrados 5 credores (total: 819)"
+        }
+      ],
+      "dados_obtidos": {
+        "total_credores": 819,
+        "credores_retornados": 5,
+        "campos_incluidos": ["nome", "CNPJ/CPF", "tipo", "status ativo"]
+      },
+      "instrucoes_replicacao": {
+        "comando": "manus-mcp-cli tool call get_sienge_creditors --server mcp-sienge --input '{\"limit\": 30}'",
+        "parametros": {
+          "limit": "Número máximo de registros"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "titulo": "Consulta de Pedidos de Compra",
+      "cenario": "Gerente de compras quer acompanhar pedidos pendentes",
+      "solicitante": "Gerente de Compras",
+      "pedido": "Quero ver os pedidos de compra que estão pendentes de aprovação",
+      "resultado": "S",
+      "status": "SUCESSO",
+      "comandos_executados": [
+        {
+          "ferramenta": "get_sienge_purchase_orders",
+          "parametros": {
+            "limit": 3
+          },
+          "resultado": "✅ Encontrados 3 pedidos de compra"
+        }
+      ],
+      "dados_obtidos": {
+        "pedidos_retornados": 3,
+        "status_comum": "PENDING e CONSISTENT",
+        "campos_incluidos": ["ID", "fornecedor", "obra", "comprador", "valores", "datas"]
+      },
+      "instrucoes_replicacao": {
+        "comando": "manus-mcp-cli tool call get_sienge_purchase_orders --server mcp-sienge --input '{\"limit\": 20}'",
+        "parametros": {
+          "limit": "Número máximo de registros"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "titulo": "Consulta de Estoque",
+      "cenario": "Almoxarife precisa verificar estoque de materiais de uma obra",
+      "solicitante": "Almoxarife",
+      "pedido": "Preciso ver o estoque de materiais da obra Buenos Aires",
+      "resultado": "S",
+      "status": "SUCESSO",
+      "comandos_executados": [
+        {
+          "ferramenta": "get_sienge_stock_inventory",
+          "parametros": {
+            "cost_center_id": "12"
+          },
+          "resultado": "✅ Inventário do centro de custo 12"
+        }
+      ],
+      "dados_obtidos": {
+        "centro_custo": "12",
+        "itens_estoque": "80+",
+        "campos_incluidos": ["nome do recurso", "quantidade", "unidade de medida", "preço médio"]
+      },
+      "instrucoes_replicacao": {
+        "comando": "manus-mcp-cli tool call get_sienge_stock_inventory --server mcp-sienge --input '{\"cost_center_id\": \"ID_DO_CENTRO_DE_CUSTO\"}'",
+        "parametros": {
+          "cost_center_id": "ID do centro de custo (como string)"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "titulo": "Relatório Executivo/Dashboard",
+      "cenario": "CEO quer visão geral do sistema para reunião de board",
+      "solicitante": "CEO",
+      "pedido": "Preciso de um resumo executivo do status geral do sistema",
+      "resultado": "N",
+      "status": "FALHOU",
+      "comandos_executados": [
+        {
+          "ferramenta": "get_sienge_dashboard_summary",
+          "parametros": {},
+          "resultado": "✅ Dashboard do Sienge - 0 módulos disponíveis"
+        }
+      ],
+      "problemas": [
+        "Dashboard indica 0 módulos disponíveis",
+        "Múltiplos erros 'FunctionTool' object is not callable",
+        "Problemas de conectividade com módulos principais"
+      ],
+      "instrucoes_replicacao": null
+    }
+  ],
+  "analise_geral": {
+    "funcionalidades_confirmadas": [
+      "Gestão de Clientes: Busca, listagem e detalhes",
+      "Gestão de Projetos: Listagem e detalhes completos",
+      "Gestão de Unidades: Inventário imobiliário",
+      "Gestão de Fornecedores: Base completa de credores",
+      "Gestão de Compras: Pedidos e aprovações",
+      "Gestão de Estoque: Inventário por centro de custo"
+    ],
+    "limitacoes_identificadas": [
+      "Dados Financeiros: Problemas de acesso a contas a receber",
+      "Dashboard Geral: Conectividade com módulos principais",
+      "Rate Limiting: Necessário controle de frequência de chamadas"
+    ],
+    "recomendacoes": [
+      "Implementar retry logic para casos de rate limit",
+      "Investigar problemas com módulos financeiros",
+      "Melhorar dashboard para visão executiva",
+      "Documentar limitações de cada endpoint",
+      "Criar cache para consultas frequentes"
+    ]
+  }
+}

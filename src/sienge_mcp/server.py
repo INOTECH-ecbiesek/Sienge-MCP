@@ -12,6 +12,10 @@ from dotenv import load_dotenv
 from datetime import datetime
 import time
 import uuid
+import asyncio
+
+# logger
+from .utils.logger import logger
 
 # Optional: prefer tenacity for robust retries; linter will warn if not installed but code falls back
 try:
@@ -74,43 +78,51 @@ async def make_sienge_request(
         return await client.request(method=method, url=url, headers=headers, params=params, json=json_data, auth=auth)
 
     try:
+        max_attempts = 5
+        attempts = 0
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            # Retry strategy: prefer tenacity if available
-            if TENACITY_AVAILABLE:
-                async for attempt in AsyncRetrying(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8), retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError))):
-                    with attempt:
-                        response = await _do_request(client)
-            else:
-                # Simple manual retry with exponential backoff
-                attempts = 0
-                while True:
-                    try:
-                        response = await _do_request(client)
-                        break
-                    except (httpx.RequestError, httpx.TimeoutException) as exc:
-                        attempts += 1
-                        if attempts >= 3:
-                            raise
-                        await client.aclose()
-                        await httpx.AsyncClient().aclose()
-                        await __import__('asyncio').sleep(2 ** attempts)
-
-            latency_ms = int((time.time() - start_ts) * 1000)
-
-            if response.status_code in [200, 201]:
+            while True:
+                attempts += 1
                 try:
-                    return {"success": True, "data": response.json(), "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
-                except BaseException:
-                    return {"success": True, "data": {"message": "Success"}, "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
-            else:
-                return {
-                    "success": False,
-                    "error": f"HTTP {response.status_code}",
-                    "message": response.text,
-                    "status_code": response.status_code,
-                    "latency_ms": latency_ms,
-                    "request_id": request_id,
-                }
+                    response = await client.request(method=method, url=url, headers=headers, params=params, json=json_data, auth=auth)
+                except (httpx.RequestError, httpx.TimeoutException) as exc:
+                    logger.warning(f"Request error to {url}: {exc} (attempt {attempts}/{max_attempts})")
+                    if attempts >= max_attempts:
+                        raise
+                    await asyncio.sleep(min(2 ** attempts, 60))
+                    continue
+
+                # Handle rate limit explicitly
+                if response.status_code == 429:
+                    retry_after = response.headers.get("Retry-After")
+                    try:
+                        wait_seconds = int(retry_after) if retry_after is not None else min(2 ** attempts, 60)
+                    except Exception:
+                        wait_seconds = min(2 ** attempts, 60)
+                    logger.warning(f"HTTP 429 from {url}, retrying after {wait_seconds}s (attempt {attempts}/{max_attempts})")
+                    if attempts >= max_attempts:
+                        latency_ms = int((time.time() - start_ts) * 1000)
+                        return {"success": False, "error": "HTTP 429", "message": response.text, "status_code": 429, "latency_ms": latency_ms, "request_id": request_id}
+                    await asyncio.sleep(wait_seconds)
+                    continue
+
+                latency_ms = int((time.time() - start_ts) * 1000)
+
+                if response.status_code in [200, 201]:
+                    try:
+                        return {"success": True, "data": response.json(), "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
+                    except BaseException:
+                        return {"success": True, "data": {"message": "Success"}, "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
+                else:
+                    logger.warning(f"HTTP {response.status_code} from {url}: {response.text}")
+                    return {
+                        "success": False,
+                        "error": f"HTTP {response.status_code}",
+                        "message": response.text,
+                        "status_code": response.status_code,
+                        "latency_ms": latency_ms,
+                        "request_id": request_id,
+                    }
 
     except httpx.TimeoutException:
         latency_ms = int((time.time() - start_ts) * 1000)
@@ -152,39 +164,50 @@ async def make_sienge_bulk_request(
         return await client.request(method=method, url=url, headers=headers, params=params, json=json_data, auth=auth)
 
     try:
+        max_attempts = 5
+        attempts = 0
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            if TENACITY_AVAILABLE:
-                async for attempt in AsyncRetrying(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8), retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError))):
-                    with attempt:
-                        response = await _do_request(client)
-            else:
-                attempts = 0
-                while True:
-                    try:
-                        response = await _do_request(client)
-                        break
-                    except (httpx.RequestError, httpx.TimeoutException) as exc:
-                        attempts += 1
-                        if attempts >= 3:
-                            raise
-                        await __import__('asyncio').sleep(2 ** attempts)
-
-            latency_ms = int((time.time() - start_ts) * 1000)
-
-            if response.status_code in [200, 201]:
+            while True:
+                attempts += 1
                 try:
-                    return {"success": True, "data": response.json(), "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
-                except BaseException:
-                    return {"success": True, "data": {"message": "Success"}, "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
-            else:
-                return {
-                    "success": False,
-                    "error": f"HTTP {response.status_code}",
-                    "message": response.text,
-                    "status_code": response.status_code,
-                    "latency_ms": latency_ms,
-                    "request_id": request_id,
-                }
+                    response = await client.request(method=method, url=url, headers=headers, params=params, json=json_data, auth=auth)
+                except (httpx.RequestError, httpx.TimeoutException) as exc:
+                    logger.warning(f"Bulk request error to {url}: {exc} (attempt {attempts}/{max_attempts})")
+                    if attempts >= max_attempts:
+                        raise
+                    await asyncio.sleep(min(2 ** attempts, 60))
+                    continue
+
+                if response.status_code == 429:
+                    retry_after = response.headers.get("Retry-After")
+                    try:
+                        wait_seconds = int(retry_after) if retry_after is not None else min(2 ** attempts, 60)
+                    except Exception:
+                        wait_seconds = min(2 ** attempts, 60)
+                    logger.warning(f"HTTP 429 from bulk {url}, retrying after {wait_seconds}s (attempt {attempts}/{max_attempts})")
+                    if attempts >= max_attempts:
+                        latency_ms = int((time.time() - start_ts) * 1000)
+                        return {"success": False, "error": "HTTP 429", "message": response.text, "status_code": 429, "latency_ms": latency_ms, "request_id": request_id}
+                    await asyncio.sleep(wait_seconds)
+                    continue
+
+                latency_ms = int((time.time() - start_ts) * 1000)
+
+                if response.status_code in [200, 201]:
+                    try:
+                        return {"success": True, "data": response.json(), "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
+                    except BaseException:
+                        return {"success": True, "data": {"message": "Success"}, "status_code": response.status_code, "latency_ms": latency_ms, "request_id": request_id}
+                else:
+                    logger.warning(f"HTTP {response.status_code} from bulk {url}: {response.text}")
+                    return {
+                        "success": False,
+                        "error": f"HTTP {response.status_code}",
+                        "message": response.text,
+                        "status_code": response.status_code,
+                        "latency_ms": latency_ms,
+                        "request_id": request_id,
+                    }
 
     except httpx.TimeoutException:
         latency_ms = int((time.time() - start_ts) * 1000)
