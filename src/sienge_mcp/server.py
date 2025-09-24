@@ -562,6 +562,103 @@ async def _get_sienge_accounts_receivable_impl(
 
 
 @mcp.tool
+async def get_sienge_payable_installments(
+    start_date: str,
+    end_date: str,
+    selection_type: str = "D",
+    company_id: Optional[int] = None,
+    cost_centers_id: Optional[List[int]] = None,
+    balance_min: float = 0.01,
+    correction_indexer_id: Optional[int] = None,
+    correction_date: Optional[str] = None,
+    origins_ids: Optional[List[str]] = None,
+) -> Dict:
+    """
+    Consulta bulk das parcelas do Contas a Pagar aplicando filtro por saldo (balanceAmount).
+
+    Esta tool utiliza o endpoint bulk `/payable` (API bulk-data) e permite filtrar
+    diretamente por um valor mínimo de saldo (`balance_min`). Após obter os dados do
+    bulk, a função aplica uma filtragem adicional local para garantir que apenas
+    parcelas com `dueDate` <= `end_date` e `balanceAmount` > `balance_min` sejam
+    retornadas, que é a definição usada pelos KPIs.
+
+    Args:
+        start_date: Data inicial do período (YYYY-MM-DD) - obrigatório
+        end_date: Data final do período (YYYY-MM-DD) - obrigatório
+        selection_type: Tipo de seleção de data (I=emissão, D=vencimento, P=pagamento, B=competência)
+        company_id: Código da empresa (opcional)
+        cost_centers_id: Lista de centros de custo (opcional)
+        balance_min: Valor mínimo de `balanceAmount` para considerar a parcela em aberto (padrão: 0.01)
+        correction_indexer_id: Código do indexador de correção (opcional)
+        correction_date: Data para correção do indexador (YYYY-MM-DD) (opcional)
+        origins_ids: Lista de origens (opcional)
+
+    Returns:
+        Dict com chaves: success, message, payable_data (filtrado), count, filters
+    """
+    params: Dict[str, Any] = {"startDate": start_date, "endDate": end_date, "selectionType": selection_type}
+
+    if company_id:
+        params["companyId"] = company_id
+    if cost_centers_id:
+        params["costCentersId"] = cost_centers_id
+    if correction_indexer_id:
+        params["correctionIndexerId"] = correction_indexer_id
+    if correction_date:
+        params["correctionDate"] = correction_date
+    if origins_ids:
+        params["originsIds"] = origins_ids
+
+    # Prefer to ask the bulk API to pre-filter by balance if supported by the Sienge bulk API.
+    # Usamos a chave `balanceAmountMin` por compatibilidade com padrões de filtros em bulk-data (se suportado).
+    if balance_min is not None:
+        params["balanceAmountMin"] = balance_min
+
+    result = await make_sienge_bulk_request("GET", "/payable", params=params)
+
+    if result.get("success"):
+        data = result["data"]
+        payable_data = data.get("data", []) if isinstance(data, dict) else data
+
+        # Filtro defensivo local: dueDate <= end_date e balanceAmount > balance_min
+        filtered: List[Dict[str, Any]] = []
+        for item in payable_data:
+            try:
+                due = item.get("dueDate") or item.get("due_date") or item.get("vencimento")
+                bal = float(item.get("balanceAmount", 0) or 0)
+            except Exception:
+                due = item.get("dueDate")
+                bal = float(item.get("balanceAmount", 0) or 0)
+
+            if not due:
+                # Se não houver dueDate, pulamos (não consideramos vencido)
+                continue
+            # Comparação de datas em formato YYYY-MM-DD / ISO
+            try:
+                due_date_str = due.split("T")[0] if "T" in due else due
+            except Exception:
+                due_date_str = str(due)
+
+            if due_date_str <= end_date and bal > (balance_min or 0):
+                filtered.append(item)
+
+        return {
+            "success": True,
+            "message": f"✅ Encontradas {len(filtered)} parcelas do contas a pagar com balanceAmount > {balance_min} vencidas até {end_date}",
+            "payable_data": filtered,
+            "count": len(filtered),
+            "filters": params,
+        }
+
+    return {
+        "success": False,
+        "message": "❌ Erro ao buscar parcelas do contas a pagar (bulk)",
+        "error": result.get("error"),
+        "details": result.get("message"),
+    }
+
+
+@mcp.tool
 async def get_sienge_payable_installments_by_bills(
     bills_ids: List[int], correction_indexer_id: Optional[int] = None, correction_date: Optional[str] = None
 ) -> Dict:
