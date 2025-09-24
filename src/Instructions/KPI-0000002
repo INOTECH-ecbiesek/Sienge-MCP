@@ -1,0 +1,46 @@
+```
+# KPI-0000002 — Instruções para calcular "qtd_titulos_pagar_2025" (títulos a pagar vencidos em 2025)
+
+**Objetivo**
+- Retornar a contagem de parcelas/títulos com vencimento no ano de 2025 que permanecem em aberto, utilizando `balanceAmount` (>0) como critério de aberto.
+
+**Pré-requisitos**
+- Credenciais para acessar o Sienge MCP.
+- Ferramenta `get_sienge_bills` e mecanismo para buscar parcelas/instalments por `bill`.
+
+**Passo a passo (exato)**
+1. Defina datas:
+   - `start_date` = `2025-01-01`.
+   - `end_date` = `hoje - 1 dia`, formatado `YYYY-MM-DD`.
+
+2. Liste títulos do ano: pagine `get_sienge_bills(start_date='2025-01-01', end_date=<end_date>, limit=50)` até cobrir todos.
+
+3. Para cada `bill`, recupere parcelas via `installments` e, para cada parcela, verifique:
+   - `dueDate` <= `end_date` (vencida)
+   - `balanceAmount` > 0 (em aberto)
+   - Conte a parcela se ambas condições forem verdadeiras.
+
+4. Soma das parcelas assim identificadas = valor do KPI.
+
+5. Valide estabilidade repetindo a medição imediatamente; aceite valor estável em duas chamadas consecutivas ou repita até 3 tentativas.
+
+6. Atualize o KPI: `Valor atualizado` = contagem final; `última atualização` = timestamp UTC.
+
+**Exemplo (pseudo)**
+```
+total_vencidos_abertos_2025 = 0
+page = 1
+while True:
+    resp = get_sienge_bills(start_date="2025-01-01", end_date="2025-09-23", limit=50, page=page)
+    for bill in resp['bills']:
+        installments = get_installments_for_bill(bill['id'])
+        for ins in installments:
+            if ins.get('dueDate') <= '2025-09-23' and float(ins.get('balanceAmount', 0) or 0) > 0:
+                total_vencidos_abertos_2025 += 1
+    if page >= resp.get('total_pages', 1):
+        break
+    page += 1
+```
+```
+
+

@@ -1,0 +1,56 @@
+```
+# KPI-0000001 — Instruções para calcular "qtd_titulos_pagar" (títulos a pagar vencidos)
+
+**Objetivo**
+- Retornar a contagem de parcelas/títulos a pagar que estão vencidos até ontem (vencimento <= ontem) e que continuam em aberto, usando `balanceAmount` como fonte da verdade para aberto (>0).
+
+**Pré-requisitos**
+- Acesso ao Sienge MCP com as credenciais configuradas no ambiente.
+- O wrapper MCP local fornece `get_sienge_bills` e/ou permite seguir o link `installments` presente em cada `bill` para buscar parcelas.
+
+**Passo a passo (exato)**
+1. Defina as datas:
+   - `hoje` = data atual em UTC.
+   - `end_date` = `hoje - 1 dia`, formatado como `YYYY-MM-DD` (ex.: `2025-09-23`).
+   - `start_date` = `2000-01-01` (ou qualquer data suficientemente antiga para cobrir todo o histórico).
+
+2. Liste títulos no período: chame `get_sienge_bills(start_date=<start_date>, end_date=<end_date>, limit=50)` e pagine até cobrir todos os títulos do período.
+
+3. Para cada `bill` retornado, recupere as parcelas (installments): siga o link `installments` presente em `bill['links']` ou use a função do wrapper que expõe esse endpoint.
+
+4. Para cada parcela, aplique a regra **baseada em `balanceAmount`**:
+   - `vencida` se `dueDate` <= `end_date`.
+   - `em_aberto` se `balanceAmount` > 0.
+   - Considere a parcela **vencida e em aberto** se ambas condições forem verdadeiras.
+
+5. Conte todas as parcelas que satisfaçam a condição do passo 4 — esse total é o valor do KPI (contagem de parcelas vencidas e ainda com saldo > 0).
+
+6. Validação de estabilidade:
+   - Repita a mesma medição (mesmos parâmetros) imediatamente mais uma vez. Se os resultados coincidirem, aceite o valor. Se divergirem, repita até 3 tentativas e aceite o valor que se repetir duas vezes consecutivas; se não houver estabilidade, registre erro.
+
+7. Atualize o KPI:
+   - `Valor atualizado` = contagem final de parcelas vencidas e em aberto.
+   - `última atualização` = timestamp ISO 8601 UTC da medição.
+
+**Exemplo (pseudo)**
+```
+total_vencidos_abertos = 0
+page = 1
+while True:
+    resp = get_sienge_bills(start_date="2000-01-01", end_date="2025-09-23", limit=50, page=page)
+    for bill in resp['bills']:
+        installments = get_installments_for_bill(bill['id'])
+        for ins in installments:
+            if ins.get('dueDate') <= '2025-09-23' and float(ins.get('balanceAmount', 0) or 0) > 0:
+                total_vencidos_abertos += 1
+    if page >= resp.get('total_pages', 1):
+        break
+    page += 1
+```
+
+**Notas**
+- A regra é 100% baseada em `balanceAmount` (>0 = aberto). Não considere apenas o campo `status` sem verificar `balanceAmount`.
+- Se o wrapper/API fornecer metadados confiáveis que já filtrem por saldo (>0) e vencimento, é possível usar `total_count` como atalho; caso contrário, realize a filtragem por parcela como descrito.
+```
+
+
