@@ -562,6 +562,51 @@ async def _get_sienge_accounts_receivable_impl(
 
 
 @mcp.tool
+async def get_sienge_payable_installments_by_bills(
+    bills_ids: List[int], correction_indexer_id: Optional[int] = None, correction_date: Optional[str] = None
+) -> Dict:
+    """
+    Consulta (via bulk-data) as parcelas do Contas a Pagar para os títulos informados.
+
+    Args:
+        bills_ids: Lista de IDs de títulos (obrigatório)
+        correction_indexer_id: Código do indexador de correção (opcional)
+        correction_date: Data para correção do indexador (YYYY-MM-DD) (opcional)
+
+    Retorna:
+        dict com chaves: success, message, payable_data, count, bills_consulted, filters
+    """
+    params = {"billsIds": bills_ids}
+
+    if correction_indexer_id:
+        params["correctionIndexerId"] = correction_indexer_id
+    if correction_date:
+        params["correctionDate"] = correction_date
+
+    result = await make_sienge_bulk_request("GET", "/payable/by-bills", params=params)
+
+    if result.get("success"):
+        data = result["data"]
+        payable_data = data.get("data", []) if isinstance(data, dict) else data
+
+        return {
+            "success": True,
+            "message": f"✅ Encontradas {len(payable_data)} parcelas do contas a pagar para os títulos informados",
+            "payable_data": payable_data,
+            "count": len(payable_data),
+            "bills_consulted": bills_ids,
+            "filters": params,
+        }
+
+    return {
+        "success": False,
+        "message": "❌ Erro ao buscar parcelas do contas a pagar dos títulos informados",
+        "error": result.get("error"),
+        "details": result.get("message"),
+    }
+
+
+@mcp.tool
 async def get_sienge_accounts_receivable_by_bills(
     bills_ids: List[int], correction_indexer_id: Optional[int] = None, correction_date: Optional[str] = None
 ) -> Dict:
