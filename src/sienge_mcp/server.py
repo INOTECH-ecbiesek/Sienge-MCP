@@ -224,6 +224,12 @@ async def make_sienge_bulk_request(
 @mcp.tool
 async def test_sienge_connection(_meta: Optional[Dict[str, Any]] = None) -> Dict:
     """Testa a conexão com a API do Sienge e retorna métricas básicas"""
+    # Delegate to internal implementation to avoid calling decorated FunctionTool object
+    return await _test_sienge_connection_impl(_meta=_meta)
+
+
+async def _test_sienge_connection_impl(_meta: Optional[Dict[str, Any]] = None) -> Dict:
+    """Internal implementation of test_sienge_connection"""
     try:
         # Tentar endpoint mais simples primeiro
         result = await make_sienge_request("GET", "/customer-types")
@@ -329,6 +335,10 @@ async def _get_sienge_customers_impl(
 @mcp.tool
 async def get_sienge_customer_types() -> Dict:
     """Lista tipos de clientes disponíveis"""
+    return await _get_sienge_customer_types_impl()
+
+
+async def _get_sienge_customer_types_impl() -> Dict:
     result = await make_sienge_request("GET", "/customer-types")
 
     if result["success"]:
@@ -475,6 +485,37 @@ async def get_sienge_accounts_receivable(
         bearers_id_in: Filtrar parcelas com códigos de portador específicos
         bearers_id_not_in: Filtrar parcelas excluindo códigos de portador específicos
     """
+    # Delegate to internal implementation to avoid calling decorated FunctionTool
+    return await _get_sienge_accounts_receivable_impl(
+        start_date=start_date,
+        end_date=end_date,
+        selection_type=selection_type,
+        company_id=company_id,
+        cost_centers_id=cost_centers_id,
+        correction_indexer_id=correction_indexer_id,
+        correction_date=correction_date,
+        change_start_date=change_start_date,
+        completed_bills=completed_bills,
+        origins_ids=origins_ids,
+        bearers_id_in=bearers_id_in,
+        bearers_id_not_in=bearers_id_not_in,
+    )
+
+
+async def _get_sienge_accounts_receivable_impl(
+    start_date: str,
+    end_date: str,
+    selection_type: str = "D",
+    company_id: Optional[int] = None,
+    cost_centers_id: Optional[List[int]] = None,
+    correction_indexer_id: Optional[int] = None,
+    correction_date: Optional[str] = None,
+    change_start_date: Optional[str] = None,
+    completed_bills: Optional[str] = None,
+    origins_ids: Optional[List[str]] = None,
+    bearers_id_in: Optional[List[int]] = None,
+    bearers_id_not_in: Optional[List[int]] = None,
+) -> Dict:
     params = {"startDate": start_date, "endDate": end_date, "selectionType": selection_type}
 
     if company_id:
@@ -1369,17 +1410,19 @@ async def search_sienge_data(
     
     for entity_key, entity_name in entities_to_search:
         try:
+            # _search_specific_entity already calls internal implementations, safe to await
             entity_result = await _search_specific_entity(entity_key, query, min(5, limit), {})
             if entity_result["success"] and entity_result.get("count", 0) > 0:
                 search_results.append({
                     "entity_type": entity_key,
                     "entity_name": entity_name,
                     "count": entity_result["count"],
-                    "results": entity_result["data"][:5],  # Limitar a 5 por entidade na busca universal
-                    "has_more": entity_result["count"] > 5
+                    # Ensure 'data' exists and is a list
+                    "results": (entity_result.get("data") or [])[:5],
+                    "has_more": entity_result.get("count", 0) > 5
                 })
-                total_found += entity_result["count"]
-        except Exception as e:
+                total_found += int(entity_result.get("count", 0) or 0)
+        except Exception:
             # Continuar com outras entidades se uma falhar
             continue
     
@@ -1407,29 +1450,30 @@ async def _search_specific_entity(entity_type: str, query: str, limit: int, filt
     """Função auxiliar para buscar em uma entidade específica"""
     
     if entity_type == "customers":
-        result = await get_sienge_customers(limit=limit, search=query)
+        # Call internal implementation to avoid decorated FunctionTool proxy
+        result = await _get_sienge_customers_impl(limit=limit, offset=0, search=query)
         if result["success"]:
             return {
                 "success": True,
-                "data": result["customers"],
-                "count": result["count"],
+                "data": result.get("customers", []),
+                "count": result.get("count", 0),
                 "entity_type": "customers"
             }
     
     elif entity_type == "creditors":
-        result = await get_sienge_creditors(limit=limit, search=query)
+        result = await _get_sienge_creditors_impl(limit=limit, offset=0, search=query)
         if result["success"]:
             return {
                 "success": True,
-                "data": result["creditors"],
-                "count": result["count"],
+                "data": result.get("creditors", []),
+                "count": result.get("count", 0),
                 "entity_type": "creditors"
             }
     
     elif entity_type == "projects" or entity_type == "enterprises":
         # Para projetos, usar filtros mais específicos se disponível
         company_id = filters.get("company_id")
-        result = await get_sienge_projects(limit=limit, company_id=company_id)
+        result = await _get_sienge_projects_impl(limit=limit, offset=0, company_id=company_id)
         if result["success"]:
             # Filtrar por query se fornecida
             projects = result["enterprises"]
@@ -1451,7 +1495,7 @@ async def _search_specific_entity(entity_type: str, query: str, limit: int, filt
         # Para títulos, usar data padrão se não especificada
         start_date = filters.get("start_date")
         end_date = filters.get("end_date") 
-        result = await get_sienge_bills(
+        result = await _get_sienge_bills_impl(
             start_date=start_date, 
             end_date=end_date, 
             limit=limit
@@ -1465,7 +1509,7 @@ async def _search_specific_entity(entity_type: str, query: str, limit: int, filt
             }
     
     elif entity_type == "purchase_orders":
-        result = await get_sienge_purchase_orders(limit=limit)
+        result = await _get_sienge_purchase_orders_impl(limit=limit)
         if result["success"]:
             orders = result["purchase_orders"]
             # Filtrar por query se fornecida
@@ -1599,36 +1643,37 @@ async def get_sienge_data_paginated(
     if entity_type == "customers":
         search = filters.get("search")
         customer_type_id = filters.get("customer_type_id")
-        result = await get_sienge_customers(
+        # Call internal implementation to avoid decorated proxy
+        result = await _get_sienge_customers_impl(
             limit=page_size,
-            offset=offset, 
+            offset=offset,
             search=search,
-            customer_type_id=customer_type_id
+            customer_type_id=customer_type_id,
         )
         
     elif entity_type == "creditors":
         search = filters.get("search")
-        result = await get_sienge_creditors(
+        result = await _get_sienge_creditors_impl(
             limit=page_size,
             offset=offset,
-            search=search
+            search=search,
         )
         
     elif entity_type == "projects":
-        result = await get_sienge_projects(
+        result = await _get_sienge_projects_impl(
             limit=page_size,
             offset=offset,
             company_id=filters.get("company_id"),
-            enterprise_type=filters.get("enterprise_type")
+            enterprise_type=filters.get("enterprise_type"),
         )
         
     elif entity_type == "bills":
-        result = await get_sienge_bills(
+        result = await _get_sienge_bills_impl(
             start_date=filters.get("start_date"),
             end_date=filters.get("end_date"),
             creditor_id=filters.get("creditor_id"),
             status=filters.get("status"),
-            limit=page_size
+            limit=page_size,
         )
         
     else:
@@ -1693,7 +1738,8 @@ async def search_sienge_financial_data(
     # Buscar contas a receber
     if search_type in ["receivable", "both"]:
         try:
-            receivable_result = await get_sienge_accounts_receivable(
+            # Call internal implementation to avoid decorated proxy
+            receivable_result = await _get_sienge_accounts_receivable_impl(
                 start_date=period_start,
                 end_date=period_end,
                 selection_type="D"  # Por vencimento
@@ -1739,7 +1785,7 @@ async def search_sienge_financial_data(
     # Buscar contas a pagar  
     if search_type in ["payable", "both"]:
         try:
-            payable_result = await get_sienge_bills(
+            payable_result = await _get_sienge_bills_impl(
                 start_date=period_start,
                 end_date=period_end,
                 limit=100
@@ -1836,7 +1882,8 @@ async def get_sienge_dashboard_summary() -> Dict:
     
     # 1. Testar conexão
     try:
-        connection_test = await test_sienge_connection()
+        # Use internal implementation to avoid calling decorated proxy
+        connection_test = await _test_sienge_connection_impl()
         dashboard_data["connection"] = connection_test
     except Exception as e:
         errors.append(f"Teste de conexão: {str(e)}")
@@ -1844,7 +1891,7 @@ async def get_sienge_dashboard_summary() -> Dict:
     
     # 2. Contar clientes (amostra)
     try:
-        customers_result = await get_sienge_customers(limit=1)
+        customers_result = await _get_sienge_customers_impl(limit=1, offset=0)
         if customers_result["success"]:
             dashboard_data["customers_available"] = True
         else:
@@ -1855,7 +1902,7 @@ async def get_sienge_dashboard_summary() -> Dict:
     
     # 3. Contar projetos (amostra)
     try:
-        projects_result = await get_sienge_projects(limit=5)
+        projects_result = await _get_sienge_projects_impl(limit=5, offset=0)
         if projects_result["success"]:
             dashboard_data["projects"] = {
                 "available": True,
@@ -1870,7 +1917,7 @@ async def get_sienge_dashboard_summary() -> Dict:
     
     # 4. Títulos a pagar do mês atual
     try:
-        bills_result = await get_sienge_bills(
+        bills_result = await _get_sienge_bills_impl(
             start_date=current_month_start,
             end_date=current_month_end,
             limit=10
@@ -1889,7 +1936,7 @@ async def get_sienge_dashboard_summary() -> Dict:
     
     # 5. Tipos de clientes
     try:
-        customer_types_result = await get_sienge_customer_types()
+        customer_types_result = await _get_sienge_customer_types_impl()
         if customer_types_result["success"]:
             dashboard_data["customer_types"] = {
                 "available": True,
